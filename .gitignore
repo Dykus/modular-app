@@ -1,11 +1,8 @@
-# Python
 __pycache__/
 *.py[cod]
 venv/
-
-# База данных
 data/*.db
-
-# IDE
 .vscode/
 .idea/
+*.log
+/install.py

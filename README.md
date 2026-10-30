@@ -1,14 +1,4 @@
-# Модульное приложение для производства
-
-Веб-приложение с модульной архитектурой для замены Excel-таблиц.
-
-## Структура
-- **core/** — ядро приложения (авторизация, БД, API)
-- **modules/** — подключаемые модули
-- **web/** — веб-интерфейс
-- **data/** — база данных и бэкапы
-
-## Запуск
-```bash
-pip install -r requirements.txt
-python run.py
+# Modular App
+Vebl-prilozhenie s modulnoy arhitekturoy dlya zameny Excel-tablic.
+Struktura: core/ (yadro), modules/ (moduli), web/ (interfeys), data/ (BD).
+Zapusk: pip install -r requirements.txt  then  python run.py
