@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Модульное приложение — демо</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:'Segoe UI',Tahoma,sans-serif; background:#eef1f6; color:#2c3e50; line-height:1.5; }
+.wrap { max-width:1180px; margin:0 auto; padding:18px; }
+header { background:linear-gradient(135deg,#667eea,#764ba2); color:#fff; padding:22px 26px; border-radius:12px; margin-bottom:16px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; }
+header h1 { font-size:20px; }
+header .who { font-size:13px; opacity:.9; }
+.tabs { display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap; }
+.tab { background:#fff; border:1px solid #d6dbe4; padding:9px 18px; border-radius:8px; cursor:pointer; font-size:14px; font-weight:600; color:#5a6b85; transition:.15s; }
+.tab:hover { border-color:#667eea; color:#667eea; }
+.tab.active { background:#667eea; color:#fff; border-color:#667eea; box-shadow:0 3px 8px rgba(102,126,234,.35); }
+.panel { background:#fff; border-radius:12px; padding:20px; box-shadow:0 2px 6px rgba(0,0,0,.06); display:none; }
+.panel.active { display:block; }
+.toolbar { display:flex; gap:10px; margin-bottom:14px; flex-wrap:wrap; align-items:center; }
+.toolbar input[type=text] { padding:8px 12px; border:1px solid #d6dbe4; border-radius:7px; font-size:14px; min-width:220px; }
+.btn { background:#667eea; color:#fff; border:none; padding:9px 16px; border-radius:7px; cursor:pointer; font-size:14px; font-weight:600; transition:.15s; }
+.btn:hover { background:#5566d8; }
+.btn.gray { background:#8a93a6; }
+.btn.gray:hover { background:#737c8e; }
+.btn.red { background:#e74c3c; }
+.btn.red:hover { background:#c0392b; }
+table { width:100%; border-collapse:collapse; font-size:14px; }
+th { text-align:left; padding:10px 12px; background:#f4f6fa; color:#5a6b85; font-weight:600; border-bottom:2px solid #e1e6ef; font-size:13px; text-transform:uppercase; letter-spacing:.3px; }
+td { padding:10px 12px; border-bottom:1px solid #eef1f6; }
+tr:hover td { background:#fafbfe; }
+.badge { display:inline-block; padding:3px 10px; border-radius:20px; font-size:12px; font-weight:600; color:#fff; }
+.b-green { background:#27ae60; } .b-yellow { background:#f39c12; }
+.b-red { background:#e74c3c; } .b-gray { background:#95a5a6; } .b-purple { background:#8e44ad; }
+.qty { font-weight:700; }
+.q-green { color:#27ae60; } .q-yellow { color:#f39c12; } .q-red { color:#e74c3c; }
+.form-row { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px; padding:14px; background:#f8f9fc; border-radius:9px; border:1px dashed #cdd4e0; }
+.form-row input, .form-row select { padding:8px 10px; border:1px solid #d6dbe4; border-radius:6px; font-size:14px; }
+.empty { text-align:center; color:#9aa3b2; padding:30px; font-style:italic; }
+.note { font-size:12px; color:#8a93a6; margin-top:12px; }
+footer { text-align:center; color:#8a93a6; font-size:12px; padding:18px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>🏭 Модульное приложение для производства</h1>
+    <div class="who">Вошёл как: <b>Диспетчер Иванов</b> · роль: редактор</div>
+  </header>
+
+  <div class="tabs">
+    <div class="tab active" data-tab="orders">📋 Заказы</div>
+    <div class="tab" data-tab="stock">📦 Склад</div>
+    <div class="tab" data-tab="log">🕓 Журнал изменений</div>
+  </div>
+
+  <!-- МОДУЛЬ: ЗАКАЗЫ -->
+  <div class="panel active" id="orders">
+    <div class="toolbar">
+      <input type="text" id="searchOrders" placeholder="🔍 Поиск по заказу, изделию, ответственному...">
+      <button class="btn gray" onclick="exportCSV('orders')">⬇ Экспорт в Excel/CSV</button>
+      <span style="margin-left:auto;font-size:13px;color:#8a93a6" id="ordersCount"></span>
+    </div>
+    <div class="form-row">
+      <input type="text" id="oItem" placeholder="Изделие / заказ">
+      <input type="number" id="oQty" placeholder="Кол-во" style="width:90px">
+      <input type="date" id="oDate">
+      <select id="oStatus">
+        <option value="work">В работе</option>
+        <option value="done">Готово</option>
+        <option value="wait">Ожидание</option>
+        <option value="over">Просрочен</option>
+      </select>
+      <input type="text" id="oWho" placeholder="Ответственный">
+      <button class="btn" onclick="addOrder()">＋ Добавить запись</button>
+    </div>
+    <table>
+      <thead><tr><th>№</th><th>Изделие / заказ</th><th>Кол-во</th><th>Срок</th><th>Статус</th><th>Ответственный</th><th></th></tr></thead>
+      <tbody id="ordersBody"></tbody>
+    </table>
+    <div class="note">Статусы окрашены: 🟢 готово · 🟡 в работе · 🟣 ожидание · 🔴 просрочен. Клик по строке — не блокирует других пользователей (в отличие от Excel).</div>
+  </div>
+
+  <!-- МОДУЛЬ: СКЛАД -->
+  <div class="panel" id="stock">
+    <div class="toolbar">
+      <input type="text" id="searchStock" placeholder="🔍 Поиск по детали или месту хранения...">
+      <button class="btn gray" onclick="exportCSV('stock')">⬇ Экспорт в Excel/CSV</button>
+    </div>
+    <table>
+      <thead><tr><th>Деталь</th><th>Остаток</th><th>Место хранения</th><th>Состояние</th></tr></thead>
+      <tbody id="stockBody"></tbody>
+    </table>
+    <div class="note">Остаток подсвечивается как в RadioPartsDB: 🟢 &gt;10 · 🟡 1–9 · 🔴 0. Адрес вида «Стеллаж / Ящик / Полка».</div>
+  </div>
+
+  <!-- МОДУЛЬ: ЖУРНАЛ -->
+  <div class="panel" id="log">
+    <div class="toolbar">
+      <button class="btn gray" onclick="exportCSV('log')">⬇ Экспорт журнала</button>
+      <span style="margin-left:auto;font-size:13px;color:#8a93a6">Все действия фиксируются автоматически</span>
+    </div>
+    <table>
+      <thead><tr><th>Когда</th><th>Кто</th><th>Действие</th><th>Что изменено</th></tr></thead>
+      <tbody id="logBody"></tbody>
+    </table>
+    <div class="note">Это то, чего никогда не даст сетевой Excel: полная история «кто, что и когда поменял».</div>
+  </div>
+
+  <footer>Демо-витрина · ядро + модули · данные вымышлены для наглядности</footer>
+</div>
+
+<script>
+// ===== ЯДРО: состояние и журнал =====
+var currentUser = "Диспетчер Иванов";
+var log = [
+  {t:"30.10.2026 09:12", who:"Мастер Петров", act:"изменил статус", what:"Заказ №1042: В работе → Готово"},
+  {t:"30.10.2026 08:40", who:"Приёмщик Сидоров", act:"добавил запись", what:"Склад: конденсатор 100мкф, остаток 25"},
+  {t:"29.10.2026 17:05", who:"Диспетчер Иванов", act:"создал заказ", what:"Заказ №1044 «Кронштейн рамы»"}
+];
+
+var orders = [
+  {id:1044, item:"Кронштейн рамы", qty:120, date:"2026-11-10", status:"work", who:"Иванов"},
+  {id:1043, item:"Плата управления БУ-7", qty:35, date:"2026-11-02", status:"wait", who:"Петров"},
+  {id:1042, item:"Кожух защитный", qty:200, date:"2026-10-28", status:"done", who:"Сидоров"},
+  {id:1041, item:"Вал приводной ВП-3", qty:8, date:"2026-10-25", status:"over", who:"Иванов"},
+  {id:1040, item:"Сборка реле РЭС-49", qty:500, date:"2026-11-15", status:"work", who:"Петров"}
+];
+
+var stock = [
+  {name:"Резистор 2.2кОм 0.25Вт", qty:340, place:"Стеллаж А / Ящик 12 / Полка 3", cond:"Новое"},
+  {name:"Конденсатор 100мкф 25В", qty:7, place:"Стеллаж А / Ящик 14 / Полка 1", cond:"Новое"},
+  {name:"Микросхема К155ЛА3", qty:0, place:"Стеллаж Б / Ящик 02 / Полка 5", cond:"Б/У"},
+  {name:"Трансформатор ТС-200", qty:2, place:"Стеллаж В / Паллета 04", cond:"Новое"},
+  {name:"Разъём РШ-32", qty:18, place:"Стеллаж Б / Ящик 09 / Полка 2", cond:"Неисправно"}
+];
+
+var statusMap = {
+  work:{label:"В работе", cls:"b-yellow"},
+  done:{label:"Готово", cls:"b-green"},
+  wait:{label:"Ожидание", cls:"b-purple"},
+  over:{label:"Просрочен", cls:"b-red"}
+};
+function condCls(c){ if(c==="Новое")return "b-green"; if(c==="Б/У")return "b-purple"; return "b-red"; }
+function qtyCls(q){ if(q===0)return "q-red"; if(q<10)return "q-yellow"; return "q-green"; }
+function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+function now(){ var d=new Date(); function p(n){return (n<10?"0":"")+n;} return p(d.getDate())+"."+p(d.getMonth()+1)+"."+d.getFullYear()+" "+p(d.getHours())+":"+p(d.getMinutes()); }
+function writeLog(act,what){ log.unshift({t:now(), who:currentUser, act:act, what:what}); renderLog(); }
+
+// ===== Рендер =====
+function renderOrders(filter){
+  filter=(filter||"").toLowerCase();
+  var b=document.getElementById("ordersBody"); b.innerHTML="";
+  var rows=orders.filter(function(o){ return !filter || (o.item+" "+o.who+" "+o.id).toLowerCase().indexOf(filter)>-1; });
+  if(!rows.length){ b.innerHTML='<tr><td colspan="7" class="empty">Ничего не найдено</td></tr>'; }
+  rows.forEach(function(o){
+    var s=statusMap[o.status];
+    var tr=document.createElement("tr");
+    tr.innerHTML="<td><b>"+o.id+"</b></td><td>"+esc(o.item)+"</td><td class='qty'>"+o.qty+"</td><td>"+o.date+"</td>"+
+      "<td><span class='badge "+s.cls+"'>"+s.label+"</span></td><td>"+esc(o.who)+"</td>"+
+      "<td><button class='btn red' style='padding:4px 9px;font-size:12px' onclick='delOrder("+o.id+")'>✕</button></td>";
+    b.appendChild(tr);
+  });
+  document.getElementById("ordersCount").textContent="Показано: "+rows.length+" из "+orders.length;
+}
+function renderStock(filter){
+  filter=(filter||"").toLowerCase();
+  var b=document.getElementById("stockBody"); b.innerHTML="";
+  var rows=stock.filter(function(s){ return !filter || (s.name+" "+s.place).toLowerCase().indexOf(filter)>-1; });
+  if(!rows.length){ b.innerHTML='<tr><td colspan="4" class="empty">Ничего не найдено</td></tr>'; }
+  rows.forEach(function(s){
+    var tr=document.createElement("tr");
+    tr.innerHTML="<td>"+esc(s.name)+"</td><td class='qty "+qtyCls(s.qty)+"'>"+s.qty+"</td><td>"+esc(s.place)+"</td>"+
+      "<td><span class='badge "+condCls(s.cond)+"'>"+s.cond+"</span></td>";
+    b.appendChild(tr);
+  });
+}
+function renderLog(){
+  var b=document.getElementById("logBody"); b.innerHTML="";
+  log.forEach(function(l){
+    var tr=document.createElement("tr");
+    tr.innerHTML="<td>"+l.t+"</td><td><b>"+esc(l.who)+"</b></td><td>"+esc(l.act)+"</td><td>"+esc(l.what)+"</td>";
+    b.appendChild(tr);
+  });
+}
+
+// ===== Действия =====
+function addOrder(){
+  var item=document.getElementById("oItem").value.trim();
+  var qty=parseInt(document.getElementById("oQty").value)||0;
+  var date=document.getElementById("oDate").value||"—";
+  var st=document.getElementById("oStatus").value;
+  var who=document.getElementById("oWho").value.trim()||currentUser;
+  if(!item){ alert("Укажите изделие / заказ"); return; }
+  var id=Math.max.apply(null,orders.map(function(o){return o.id;}))+1;
+  orders.unshift({id:id,item:item,qty:qty,date:date,status:st,who:who});
+  writeLog("создал заказ","Заказ №"+id+" «"+item+"»");
+  document.getElementById("oItem").value=""; document.getElementById("oQty").value=""; document.getElementById("oWho").value="";
+  renderOrders(document.getElementById("searchOrders").value);
+}
+function delOrder(id){
+  if(!confirm("Удалить заказ №"+id+"? Действие попадёт в журнал.")) return;
+  var o=orders.find(function(x){return x.id===id;});
+  orders=orders.filter(function(x){return x.id!==id;});
+  writeLog("удалил заказ","Заказ №"+id+(o?" «"+o.item+"»":""));
+  renderOrders(document.getElementById("searchOrders").value);
+}
+function exportCSV(which){
+  var data="", name="";
+  if(which==="orders"){ name="zakazy.csv"; data="№;Изделие;Кол-во;Срок;Статус;Ответственный\n";
+    orders.forEach(function(o){ data+=o.id+";"+o.item+";"+o.qty+";"+o.date+";"+statusMap[o.status].label+";"+o.who+"\n"; }); }
+  else if(which==="stock"){ name="sklad.csv"; data="Деталь;Остаток;Место;Состояние\n";
+    stock.forEach(function(s){ data+=s.name+";"+s.qty+";"+s.place+";"+s.cond+"\n"; }); }
+  else { name="zhurnal.csv"; data="Когда;Кто;Действие;Что изменено\n";
+    log.forEach(function(l){ data+=l.t+";"+l.who+";"+l.act+";"+l.what+"\n"; }); }
+  var blob=new Blob(["\uFEFF"+data],{type:"text/csv;charset=utf-8;"});
+  var a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=name; a.click();
+}
+
+// ===== Вкладки и поиск =====
+document.querySelectorAll(".tab").forEach(function(t){
+  t.onclick=function(){
+    document.querySelectorAll(".tab").forEach(function(x){x.classList.remove("active");});
+    document.querySelectorAll(".panel").forEach(function(x){x.classList.remove("active");});
+    t.classList.add("active"); document.getElementById(t.dataset.tab).classList.add("active");
+  };
+});
+document.getElementById("searchOrders").oninput=function(e){ renderOrders(e.target.value); };
+document.getElementById("searchStock").oninput=function(e){ renderStock(e.target.value); };
+
+renderOrders(""); renderStock(""); renderLog();
+</script>
+</body>
+</html>

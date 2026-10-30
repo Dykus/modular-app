@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}История хотелок{% endblock %}
+{% block content %}
+<div class="welcome">
+<h2>История хотелок</h2>
+<p>Кто, когда и какой статус поставил. Это твой учёт «сделано / буду делать / не нужно».</p>
+</div>
+<div class="toolbar">
+<a href="{{ url_for('feedback.list_items') }}" class="btn gray">Назад к списку</a>
+<form method="get" style="display:flex;gap:6px;margin-left:auto">
+<input type="text" name="q" value="{{ q }}" placeholder="Поиск по автору/тексту...">
+<button class="btn gray">Найти</button>
+</form>
+</div>
+<table>
+<thead><tr><th>Когда</th><th>Кто</th><th>Действие</th><th>Хотелка</th><th>Статус</th><th>Комментарий</th></tr></thead>
+<tbody>
+{% for l in logs %}
+<tr>
+<td style="white-space:nowrap">{{ l.timestamp.strftime('%d.%m.%Y %H:%M') }}</td>
+<td><b>{{ l.who }}</b></td>
+<td>{{ 'создал' if l.action=='created' else 'сменил статус' }}</td>
+<td>{{ l.item.text[:80] }}{% if l.item.text|length > 80 %}…{% endif %}</td>
+<td>{% if l.action=='status' %}<span class="badge {{ badges[l.old_status] }}">{{ labels[l.old_status] }}</span> → <span class="badge {{ badges[l.new_status] }}">{{ labels[l.new_status] }}</span>{% else %}<span class="badge b-purple">Новая</span>{% endif %}</td>
+<td>{{ l.comment or '—' }}</td>
+</tr>
+{% else %}
+<tr><td colspan="6" class="empty">История пуста.</td></tr>
+{% endfor %}
+</tbody>
+</table>
+{% endblock %}

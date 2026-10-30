@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}Хотелки{% endblock %}
+{% block content %}
+<div class="welcome">
+<h2>Хотелки и задачи отдела</h2>
+<p>Сотрудники пишут, что нужно. Руководитель ведёт статус: что сделано, что в планах, что не нужно.</p>
+</div>
+<div class="stats">
+<div class="card"><h3>Новые</h3><p>{{ counts.new }}</p></div>
+<div class="card"><h3>В работе</h3><p>{{ counts.work }}</p></div>
+<div class="card"><h3>Сделано</h3><p>{{ counts.done }}</p></div>
+<div class="card"><h3>Не нужно</h3><p>{{ counts.reject }}</p></div>
+<div class="card"><h3>Всего</h3><p>{{ total }}</p></div>
+</div>
+<form method="post" action="{{ url_for('feedback.add') }}" class="form-row">
+<input type="text" name="author" id="fb-author" placeholder="Ваше имя" required>
+<input type="text" name="text" placeholder="Что нужно? Опиши хотелку" required style="flex:1;min-width:240px">
+<button class="btn" type="submit">+ Отправить хотелку</button>
+</form>
+<div class="toolbar">
+<a href="{{ url_for('feedback.list_items') }}" class="btn {{ 'gray' if status=='all' }}">Все</a>
+{% for s, label in labels.items() %}
+<a href="{{ url_for('feedback.list_items', status=s) }}" class="btn {{ 'gray' if status==s }}">{{ label }}</a>
+{% endfor %}
+<form method="get" action="{{ url_for('feedback.list_items') }}" style="display:flex;gap:6px;margin-left:auto">
+{% if status != 'all' %}<input type="hidden" name="status" value="{{ status }}">{% endif %}
+<input type="text" name="q" value="{{ q }}" placeholder="Поиск...">
+<button class="btn gray" type="submit">Найти</button>
+</form>
+<a href="{{ url_for('feedback.history') }}" class="btn gray">История</a>
+</div>
+<table>
+<thead><tr><th>№</th><th>Кто подал</th><th>Хотелка</th><th>Статус</th><th>Комментарий</th><th>Когда</th><th>Сменить статус</th></tr></thead>
+<tbody>
+{% for it in items %}
+<tr>
+<td><b>{{ it.id }}</b></td>
+<td>{{ it.author }}</td>
+<td>{{ it.text }}</td>
+<td><span class="badge {{ badges[it.status] }}">{{ labels[it.status] }}</span></td>
+<td style="max-width:240px">{{ it.comment or '—' }}</td>
+<td style="white-space:nowrap">{{ it.created_at.strftime('%d.%m.%Y %H:%M') }}</td>
+<td>
+<form method="post" action="{{ url_for('feedback.set_status', item_id=it.id) }}" style="display:flex;flex-direction:column;gap:4px">
+<select name="status">
+{% for s, label in labels.items() %}<option value="{{ s }}" {{ 'selected' if it.status==s }}>{{ label }}</option>{% endfor %}
+</select>
+<input type="text" name="comment" placeholder="Комментарий (необяз.)" value="{{ it.comment or '' }}">
+<input type="text" name="who" class="fb-who" placeholder="Кто меняет" required>
+<button class="btn" type="submit" style="padding:4px 10px;font-size:12px">Сохранить</button>
+</form>
+</td>
+</tr>
+{% else %}
+<tr><td colspan="7" class="empty">Пока пусто. Напиши первую хотелку сверху.</td></tr>
+{% endfor %}
+</tbody>
+</table>
+<p class="note">Статусы пока может менять любой, кто зашёл (сеть своя). Каждое изменение пишется в «Историю».</p>
+<script>
+var a = localStorage.getItem('fb_author') || '';
+var fa = document.getElementById('fb-author');
+if (fa && a) fa.value = a;
+function syncWho(){ document.querySelectorAll('.fb-who').forEach(function(el){ if(a) el.value = a; }); }
+if (fa) fa.addEventListener('input', function(){ a = fa.value; localStorage.setItem('fb_author', a); syncWho(); });
+syncWho();
+</script>
+{% endblock %}

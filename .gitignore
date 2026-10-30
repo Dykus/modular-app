@@ -15,4 +15,3 @@ data/*.db-wal
 Thumbs.db
 *.log
 /install.py
-/update.py

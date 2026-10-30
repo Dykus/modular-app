@@ -10,10 +10,11 @@
 <div class="container">
 <header>
 <h1>Модульное приложение для производства</h1>
-<nav><a href="/">Главная</a><a href="/about">О системе</a><a href="/modules">Модули</a><a href="/admin">Админка</a></nav>
+<nav><a href="/">Главная</a><a href="/feedback">Хотелки</a><a href="/about">О системе</a></nav>
 </header>
+{% with msgs = get_flashed_messages() %}{% if msgs %}<div class="flash">{% for m in msgs %}<div>{{ m }}</div>{% endfor %}</div>{% endif %}{% endwith %}
 <main>{% block content %}{% endblock %}</main>
-<footer><p>Версия 0.1.0 | Flask + SQLAlchemy</p></footer>
+<footer><p>Версия 0.3.0 | ядро + модули | Flask + SQLAlchemy</p></footer>
 </div>
 </body>
 </html>
