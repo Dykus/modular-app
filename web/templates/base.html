@@ -3,17 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>{% block title %}Modulnoe prilozhenie{% endblock %}</title>
+<title>{% block title %}Модульное приложение{% endblock %}</title>
 <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
 <div class="container">
 <header>
-<h1>Modulnoe prilozhenie dlya proizvodstva</h1>
-<nav><a href="/">Glavnaya</a><a href="/about">O sisteme</a><a href="/modules">Moduli</a><a href="/admin">Adminka</a></nav>
+<h1>Модульное приложение для производства</h1>
+<nav><a href="/">Главная</a><a href="/about">О системе</a><a href="/modules">Модули</a><a href="/admin">Админка</a></nav>
 </header>
 <main>{% block content %}{% endblock %}</main>
-<footer><p>Ver 0.1.0 | Flask + SQLAlchemy</p></footer>
+<footer><p>Версия 0.1.0 | Flask + SQLAlchemy</p></footer>
 </div>
 </body>
 </html>
