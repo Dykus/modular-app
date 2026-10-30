@@ -3,18 +3,36 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>{% block title %}Модульное приложение{% endblock %}</title>
+<title>{% block title %}{{ app_title }}{% endblock %}</title>
 <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dark.css') }}">
 </head>
-<body>
+<body class="{{ theme }}">
 <div class="container">
 <header>
-<h1>Модульное приложение для производства</h1>
-<nav><a href="/">Главная</a><a href="/feedback">Хотелки</a><a href="/about">О системе</a></nav>
+<h1>{{ app_title }}</h1>
+<nav>
+<a href="/">Главная</a>
+{% for item in menu %}<a href="{{ item.url }}">{{ item.name }}</a>{% endfor %}
+<a href="/settings">&#9881; Настройки</a>
+<button id="themeToggle" class="theme-btn" title="Сменить тему">&#9680;</button>
+</nav>
 </header>
 {% with msgs = get_flashed_messages() %}{% if msgs %}<div class="flash">{% for m in msgs %}<div>{{ m }}</div>{% endfor %}</div>{% endif %}{% endwith %}
 <main>{% block content %}{% endblock %}</main>
-<footer><p>Версия 0.3.0 | ядро + модули | Flask + SQLAlchemy</p></footer>
+<footer><p>{{ app_footer }}</p></footer>
 </div>
+<script>
+(function(){
+  var saved = localStorage.getItem('app_theme');
+  if (saved) document.body.className = saved;
+  var btn = document.getElementById('themeToggle');
+  if (btn) btn.onclick = function(){
+    var cur = document.body.classList.contains('dark') ? 'light' : 'dark';
+    document.body.className = cur;
+    localStorage.setItem('app_theme', cur);
+  };
+})();
+</script>
 </body>
 </html>

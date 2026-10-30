@@ -2,6 +2,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash
 from core.app import db
 from datetime import datetime
 from modules.feedback.models import FeedbackItem, FeedbackLog, STATUS_LABELS, STATUS_BADGE
+from modules.settings.models import get_bool
 
 feedback_bp = Blueprint("feedback", __name__, url_prefix="/feedback", template_folder="templates")
 
@@ -26,7 +27,8 @@ def add():
     author = (request.form.get("author") or "").strip()
     text = (request.form.get("text") or "").strip()
     if not author or not text:
-        flash("Укажите имя и текст хотелки"); return redirect(url_for("feedback.list_items"))
+        flash("Укажи имя и текст задачи")
+        return redirect(url_for("feedback.list_items"))
     it = FeedbackItem(author=author, text=text, status="new")
     db.session.add(it); db.session.flush()
     db.session.add(FeedbackLog(item_id=it.id, who=author, action="created", new_status="new"))
@@ -40,7 +42,11 @@ def set_status(item_id):
     who = (request.form.get("who") or "").strip() or "без имени"
     comment = (request.form.get("comment") or "").strip()
     if new not in STATUS_LABELS:
-        flash("Неизвестный статус"); return redirect(url_for("feedback.list_items"))
+        flash("Неизвестный статус")
+        return redirect(url_for("feedback.list_items"))
+    if new == "reject" and not comment and get_bool("feedback_require_comment_on_reject", False):
+        flash("Для статуса «Не нужно» укажи комментарий — почему отказ.")
+        return redirect(url_for("feedback.list_items"))
     old = it.status
     if new != old:
         it.status = new; it.updated_at = datetime.utcnow()
