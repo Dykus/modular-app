@@ -1,5 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 from core.app import db
+from core.auth import perm
 from datetime import datetime
 from modules.feedback.models import FeedbackItem, FeedbackLog, STATUS_LABELS, STATUS_BADGE
 from modules.settings.models import get_bool
@@ -7,6 +8,7 @@ from modules.settings.models import get_bool
 feedback_bp = Blueprint("feedback", __name__, url_prefix="/feedback", template_folder="templates")
 
 @feedback_bp.route("/")
+@perm("feedback.view")
 def list_items():
     status = request.args.get("status", "all")
     q = (request.args.get("q") or "").strip()
@@ -23,6 +25,7 @@ def list_items():
                            status=status, q=q, labels=STATUS_LABELS, badges=STATUS_BADGE)
 
 @feedback_bp.route("/add", methods=["POST"])
+@perm("feedback.create")
 def add():
     author = (request.form.get("author") or "").strip()
     text = (request.form.get("text") or "").strip()
@@ -36,6 +39,7 @@ def add():
     return redirect(url_for("feedback.list_items"))
 
 @feedback_bp.route("/<int:item_id>/status", methods=["POST"])
+@perm("feedback.set_status")
 def set_status(item_id):
     it = FeedbackItem.query.get_or_404(item_id)
     new = (request.form.get("status") or it.status).strip()
@@ -58,6 +62,7 @@ def set_status(item_id):
     return redirect(url_for("feedback.list_items"))
 
 @feedback_bp.route("/history")
+@perm("feedback.view")
 def history():
     q = (request.args.get("q") or "").strip()
     logs = FeedbackLog.query

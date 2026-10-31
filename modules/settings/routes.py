@@ -1,5 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash
-from core.app import db, create_app
+from core.app import db
+from core.auth import perm
 import json
 from core.registry import AVAILABLE_MODULES
 from modules.settings.models import Setting, SettingLog, get_setting, get_bool, set_setting
@@ -16,6 +17,7 @@ def _current_enabled():
     return {m["key"] for m in AVAILABLE_MODULES}
 
 @settings_bp.route("/")
+@perm("settings.view")
 def index():
     logs = SettingLog.query.order_by(SettingLog.timestamp.desc()).limit(100).all()
     return render_template("settings/settings.html",
@@ -31,6 +33,7 @@ def index():
                            logs=logs)
 
 @settings_bp.route("/save", methods=["POST"])
+@perm("settings.manage")
 def save():
     who = (request.form.get("who") or "без имени").strip()
     set_setting("app_title",  (request.form.get("app_title") or "").strip() or "Модульное приложение", who)

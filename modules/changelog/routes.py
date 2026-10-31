@@ -1,5 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, Response
 from core.app import db
+from core.auth import perm
 import os
 from modules.changelog.models import ChangelogEntry, TYPE_LABELS, TYPE_BADGE
 
@@ -7,6 +8,7 @@ changelog_bp = Blueprint("changelog", __name__, url_prefix="/changelog", templat
 DEFAULT_MODULES = ["core", "feedback", "production", "changelog", "versions", "help", "settings"]
 
 @changelog_bp.route("/")
+@perm("changelog.view")
 def list_entries():
     typ = request.args.get("type", "all")
     mod = request.args.get("module", "all")
@@ -26,6 +28,7 @@ def list_entries():
                            typ=typ, mod=mod, q=q, module_opts=module_opts)
 
 @changelog_bp.route("/add", methods=["POST"])
+@perm("changelog.manage")
 def add():
     author = (request.form.get("author") or "").strip()
     desc = (request.form.get("description") or "").strip()
@@ -42,6 +45,7 @@ def add():
     return redirect(url_for("changelog.list_entries"))
 
 @changelog_bp.route("/<int:eid>/delete", methods=["POST"])
+@perm("changelog.manage")
 def delete(eid):
     e = ChangelogEntry.query.get_or_404(eid)
     db.session.delete(e)
@@ -50,6 +54,7 @@ def delete(eid):
     return redirect(url_for("changelog.list_entries"))
 
 @changelog_bp.route("/export.csv")
+@perm("changelog.view")
 def export_csv():
     rows = ["Дата;Тип;Модуль;Описание;Автор;Задача"]
     for e in ChangelogEntry.query.order_by(ChangelogEntry.date.desc()).all():

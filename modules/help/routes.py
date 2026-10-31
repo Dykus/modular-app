@@ -1,10 +1,12 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 from core.app import db
+from core.auth import perm
 from modules.help.models import HelpArticle, CATEGORIES
 
 help_bp = Blueprint("help", __name__, url_prefix="/help", template_folder="templates")
 
 @help_bp.route("/")
+@perm("help.view")
 def index_articles():
     q = (request.args.get("q") or "").strip()
     query = HelpArticle.query
@@ -18,21 +20,25 @@ def index_articles():
     return render_template("help/index.html", grouped=grouped, q=q, categories=CATEGORIES, total=len(arts))
 
 @help_bp.route("/<int:aid>")
+@perm("help.view")
 def view(aid):
     a = HelpArticle.query.get_or_404(aid)
     return render_template("help/article.html", article=a, editing=False, categories=CATEGORIES)
 
 @help_bp.route("/new")
+@perm("help.manage")
 def new():
     cat = request.args.get("category", CATEGORIES[0])
     return render_template("help/article.html", article=None, editing=None, categories=CATEGORIES, default_cat=cat)
 
 @help_bp.route("/<int:aid>/edit")
+@perm("help.manage")
 def edit(aid):
     a = HelpArticle.query.get_or_404(aid)
     return render_template("help/article.html", article=a, editing=a, categories=CATEGORIES)
 
 @help_bp.route("/save", methods=["POST"])
+@perm("help.manage")
 def save():
     aid = request.form.get("id", type=int)
     title = (request.form.get("title") or "").strip()
