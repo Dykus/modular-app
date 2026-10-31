@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}{{ article.title if article else 'Новая статья' }}{% endblock %}
+{% block content %}
+<p><a href="{{ url_for('help.index_articles') }}" class="btn gray">&larr; К оглавлению</a></p>
+
+{% if editing is not false %}
+<form method="post" action="{{ url_for('help.save') }}" class="form-row" style="flex-direction:column;align-items:stretch;gap:8px;margin-top:14px">
+{% if article %}<input type="hidden" name="id" value="{{ article.id }}">{% endif %}
+<div style="display:flex;gap:8px;flex-wrap:wrap">
+<input type="text" name="title" placeholder="Заголовок" value="{{ article.title if article else '' }}" required style="flex:1;min-width:240px">
+<select name="category">
+{% for c in categories %}<option value="{{ c }}" {{ 'selected' if article and article.category==c or (not article and c==default_cat) }}>{{ c }}</option>{% endfor %}
+</select>
+<input type="number" name="order" value="{{ article.order if article else 0 }}" style="width:90px" title="Порядок">
+</div>
+<textarea name="body" placeholder="Текст статьи (переносы строк сохраняются)" style="min-height:240px;padding:10px;border:1px solid #d6dbe4;border-radius:6px;font-size:14px;font-family:inherit">{{ article.body if article else '' }}</textarea>
+<div style="display:flex;gap:8px;flex-wrap:wrap">
+<input type="text" name="who" placeholder="Кто редактирует" required style="min-width:180px">
+<button class="btn" type="submit">Сохранить</button>
+{% if article %}<a href="{{ url_for('help.view', aid=article.id) }}" class="btn gray">Отмена</a>{% endif %}
+</div>
+</form>
+{% else %}
+<div class="welcome" style="margin-top:14px">
+<h2>{{ article.title }}</h2>
+<p style="color:#8a93a6;font-size:13px">{{ article.category }} &middot; ред. {{ article.edited_by or '&mdash;' }} &middot; {{ article.updated_at.strftime('%d.%m.%Y %H:%M') }}</p>
+</div>
+<pre style="white-space:pre-wrap;font-family:inherit;line-height:1.7;font-size:15px;color:#2c3e50;background:#f8f9fc;padding:18px;border-radius:9px;border-left:4px solid #667eea">{{ article.body }}</pre>
+<p><a href="{{ url_for('help.edit', aid=article.id) }}" class="btn">Править статью</a></p>
+{% endif %}
+{% endblock %}

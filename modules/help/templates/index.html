@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Справка{% endblock %}
+{% block content %}
+<div class="welcome">
+<h2>Справка и документация</h2>
+<p>Как пользоваться приложением. Статьи редактирует руководитель; содержание дополняется по мере развития.</p>
+</div>
+<div class="toolbar">
+<form method="get" style="display:flex;gap:6px">
+<input type="text" name="q" value="{{ q }}" placeholder="Поиск по справке...">
+<button class="btn gray" type="submit">Найти</button>
+</form>
+<a href="{{ url_for('help.new') }}" class="btn">+ Новая статья</a>
+<span style="margin-left:auto;color:#8a93a6;font-size:13px">Статей: {{ total }}</span>
+</div>
+{% for cat, items in grouped.items() %}
+<h3 style="margin:18px 0 8px;color:#667eea">{{ cat }}</h3>
+<table>
+<tbody>
+{% for a in items %}
+<tr>
+<td style="width:90%"><a href="{{ url_for('help.view', aid=a.id) }}" style="color:#2c3e50;text-decoration:none;font-weight:600">{{ a.title }}</a></td>
+<td style="white-space:nowrap;color:#8a93a6;font-size:13px">ред. {{ a.edited_by or '&mdash;' }} &middot; {{ a.updated_at.strftime('%d.%m.%Y') }}</td>
+<td><a href="{{ url_for('help.edit', aid=a.id) }}" class="btn gray" style="padding:4px 10px;font-size:12px">Править</a></td>
+</tr>
+{% endfor %}
+</tbody>
+</table>
+{% else %}
+<p class="empty">Статей нет{% if q %} по запросу «{{ q }}»{% endif %}.</p>
+{% endfor %}
+{% endblock %}

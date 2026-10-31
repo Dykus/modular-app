@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Версии{% endblock %}
+{% block content %}
+<div class="welcome">
+<h2>Версии и релизы</h2>
+<p>История выпусков приложения. Текущая версия показана в футере.</p>
+</div>
+
+<form method="post" action="{{ url_for('versions.save') }}" class="form-row" style="flex-direction:column;align-items:stretch;gap:8px">
+{% if editing %}<input type="hidden" name="id" value="{{ editing.id }}">{% endif %}
+<div style="display:flex;gap:8px;flex-wrap:wrap">
+<input type="text" name="version" placeholder="0.5.1" value="{{ editing.version if editing else '' }}" required style="min-width:120px">
+<input type="date" name="release_date" value="{{ editing.release_date.isoformat() if editing and editing.release_date else '' }}">
+<select name="status">
+{% for s, label in statuses.items() %}<option value="{{ s }}" {{ 'selected' if editing and editing.status==s }}>{{ label }}</option>{% endfor %}
+</select>
+<label style="display:flex;align-items:center;gap:6px"><input type="checkbox" name="make_current" value="1"> сделать текущей</label>
+</div>
+<input type="text" name="title" placeholder="Заголовок релиза" value="{{ editing.title if editing else '' }}" style="width:100%">
+<textarea name="notes" placeholder="Что вошло в релиз" style="min-height:70px;padding:8px 10px;border:1px solid #d6dbe4;border-radius:6px;font-size:14px;font-family:inherit">{{ editing.notes if editing else '' }}</textarea>
+<div style="display:flex;gap:8px;flex-wrap:wrap">
+<input type="text" name="who" placeholder="Кто сохраняет" required style="min-width:160px">
+<button class="btn" type="submit">{{ 'Сохранить правки' if editing else '+ Добавить релиз' }}</button>
+{% if editing %}<a href="{{ url_for('versions.list_releases') }}" class="btn gray">Отмена</a>{% endif %}
+</div>
+</form>
+
+<h3 style="margin:18px 0 10px;color:#667eea">Все релизы</h3>
+{% for r in releases %}
+<div class="card" style="margin-bottom:12px;border-left-color:{{ '#27ae60' if r.is_current else '#667eea' }}">
+<div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;align-items:center">
+<div>
+<b style="font-size:18px">v{{ r.version }}</b>
+{% if r.is_current %}<span class="badge b-green" style="margin-left:8px">текущая</span>{% endif %}
+<span class="badge {{ badges[r.status] }}" style="margin-left:6px">{{ statuses[r.status] }}</span>
+</div>
+<div style="display:flex;gap:6px;flex-wrap:wrap">
+<a href="{{ url_for('versions.list_releases', edit=r.id) }}" class="btn gray" style="padding:5px 12px;font-size:13px">Править</a>
+{% if not r.is_current %}
+<form method="post" action="{{ url_for('versions.make_current', rid=r.id) }}" style="margin:0"><button class="btn" type="submit" style="padding:5px 12px;font-size:13px">Сделать текущей</button></form>
+<form method="post" action="{{ url_for('versions.delete', rid=r.id) }}" onsubmit="return confirm('Удалить релиз v{{ r.version }}?')" style="margin:0"><button class="btn red" type="submit" style="padding:5px 12px;font-size:13px">&#10005;</button></form>
+{% endif %}
+</div>
+</div>
+<div style="color:#5a6b85;font-size:13px;margin:6px 0">{{ r.release_date.strftime('%d.%m.%Y') if r.release_date else '&mdash;' }}{% if r.title %} &middot; {{ r.title }}{% endif %}</div>
+{% if r.notes %}<pre style="white-space:pre-wrap;font-family:inherit;font-size:14px;color:#2c3e50;margin:6px 0 0">{{ r.notes }}</pre>{% endif %}
+</div>
+{% else %}
+<p class="empty">Релизов нет.</p>
+{% endfor %}
+{% endblock %}

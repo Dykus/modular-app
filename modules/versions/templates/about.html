@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}О программе{% endblock %}
+{% block content %}
+<div class="welcome">
+<h2>О программе</h2>
+</div>
+<div class="card" style="border-left-color:#27ae60;margin-bottom:18px">
+<h3>Текущая версия</h3>
+<p style="font-size:30px">v{{ cur.version if cur else 'dev' }}</p>
+{% if cur %}
+<div style="color:#5a6b85;margin-top:6px">{{ cur.release_date.strftime('%d.%m.%Y') if cur.release_date else '' }}{% if cur.title %} &middot; {{ cur.title }}{% endif %}</div>
+{% if cur.notes %}<pre style="white-space:pre-wrap;font-family:inherit;margin-top:10px">{{ cur.notes }}</pre>{% endif %}
+{% endif %}
+</div>
+<div class="info">
+<h3>Архитектура</h3>
+<ul>
+<li><b>Ядро (core/)</b> &mdash; Flask, база данных, реестр модулей, журнал, настройки.</li>
+<li><b>Модули (modules/)</b> &mdash; включаются и выключаются в разделе «Настройки».</li>
+<li>Данные лежат в <code>data/database.db</code> (SQLite), доступны по локальной сети.</li>
+</ul>
+</div>
+<h3 style="margin:18px 0 10px;color:#667eea">Последние релизы</h3>
+{% for r in releases %}
+<div class="card" style="margin-bottom:10px">
+<b>v{{ r.version }}</b> {% if r.is_current %}<span class="badge b-green">текущая</span>{% endif %}
+<span class="badge {{ badges[r.status] }}">{{ statuses[r.status] }}</span>
+<div style="color:#5a6b85;font-size:13px;margin:4px 0">{{ r.release_date.strftime('%d.%m.%Y') if r.release_date else '' }}{% if r.title %} &middot; {{ r.title }}{% endif %}</div>
+</div>
+{% endfor %}
+<p><a href="{{ url_for('versions.list_releases') }}" class="btn gray">Управление версиями</a></p>
+{% endblock %}

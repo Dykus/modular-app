@@ -20,7 +20,7 @@
 </header>
 {% with msgs = get_flashed_messages() %}{% if msgs %}<div class="flash">{% for m in msgs %}<div>{{ m }}</div>{% endfor %}</div>{% endif %}{% endwith %}
 <main>{% block content %}{% endblock %}</main>
-<footer><p>{{ app_footer }}</p></footer>
+<footer><p>{{ app_footer }} &middot; <a href="/versions/about" style="color:inherit">О программе</a> &middot; v{{ app_version }}</p></footer>
 </div>
 <script>
 (function(){
