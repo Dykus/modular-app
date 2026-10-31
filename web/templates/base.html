@@ -15,6 +15,8 @@
 {% if current_user.is_authenticated %}<a href="/">Главная</a>{% endif %}
 {% for item in menu %}<a href="{{ item.url }}">{{ item.name }}</a>{% endfor %}
 {% if (not auth_enabled) or can('settings.view') %}<a href="/settings">&#9881; Настройки</a>{% endif %}
+{% if can('auth.manage_roles') %}<a href="/auth/roles">🛡 Роли</a>{% endif %}
+{% if can('auth.manage_users') %}<a href="/auth/users">👥 Пользователи</a>{% endif %}
 <button id="themeToggle" class="theme-btn" title="Сменить тему">&#9680;</button>
 <span class="userbox">
 {% if current_user.is_authenticated %}

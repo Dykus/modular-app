@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}Роли{% endblock %}
+{% block content %}
+<div class="welcome">
+<h2>Роли и права доступа</h2>
+<p>Роль — это набор «прав» (галочек). Каждому человеку назначается одна роль, и он получает ровно те возможности, которые в ней отмечены. Создавайте роли под реальные должности: «Мастер участка», «Кладовщик», «Технолог» и т.п. Наведите мышь на бейдж права — появится подсказка, что оно даёт.</p>
+</div>
+
+<div class="toolbar">
+<a href="{{ url_for('auth.roles_new') }}" class="btn">+ Новая роль</a>
+<a href="/auth/users" class="btn gray">👥 Пользователи</a>
+</div>
+
+<table>
+<thead>
+<tr>
+<th style="width:22%">Роль</th>
+<th style="width:28%">Описание</th>
+<th style="width:8%">Людей</th>
+<th style="width:30%">Права</th>
+<th style="width:12%">Действия</th>
+</tr>
+</thead>
+<tbody>
+{% for row in rows %}
+<tr>
+<td>
+<b>{{ row.role.name }}</b>
+{% if row.role.is_system %}<span class="badge b-purple" style="margin-left:6px">системная</span>{% endif %}
+{% if current_user.role_id == row.role.id %}<span class="badge b-yellow" style="margin-left:6px">ваша</span>{% endif %}
+</td>
+<td style="color:#5a6b85">{{ row.role.description or '—' }}</td>
+<td><b>{{ row.users_count }}</b></td>
+<td style="max-width:380px">
+{% for p in row.perms %}
+<span class="badge b-green" style="margin:2px" title="{{ all_perms[p][1] if p in all_perms else p }}">{{ p }}</span>
+{% else %}
+<span style="color:#8a93a6">прав не отмечено{% if row.role.name == 'admin' %} — но это роль администратора: ей доступны все действия автоматически{% endif %}</span>
+{% endfor %}
+</td>
+<td>
+<a href="{{ url_for('auth.roles_edit', rid=row.role.id) }}" class="btn gray" style="padding:5px 12px;font-size:13px">Править</a>
+{% if not row.role.is_system and row.users_count == 0 and current_user.role_id != row.role.id %}
+<form method="post" action="{{ url_for('auth.roles_delete', rid=row.role.id) }}"
+      onsubmit="return confirm('Удалить роль «{{ row.role.name }}»?')" style="display:inline;margin-left:4px">
+<button class="btn red" type="submit" style="padding:5px 12px;font-size:13px">Удалить</button>
+</form>
+{% endif %}
+</td>
+</tr>
+{% else %}
+<tr><td colspan="5" class="empty">Ролей нет. Создайте первую.</td></tr>
+{% endfor %}
+</tbody>
+</table>
+
+<p class="note">Системные роли (admin, manager, staff, viewer) удалить нельзя — только редактировать. Роль, на которой есть люди, удалить нельзя: сначала переведите людей на другую роль.</p>
+{% endblock %}

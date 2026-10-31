@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Новая роль' if not role else 'Правка роли: ' + role.name }}{% endblock %}
+{% block content %}
+<p><a href="{{ url_for('auth.roles_list') }}" class="btn gray">← К списку ролей</a></p>
+
+<div class="welcome" style="margin-top:10px">
+<h2>{{ 'Новая роль' if not role else 'Правка роли: «' + role.name + '»' }}</h2>
+<p>Отметьте галочками, что сможет делать человек с этой ролью. Под каждой галочкой — описание: что именно она даёт.</p>
+</div>
+
+<form method="post" action="{{ url_for('auth.roles_save') }}" class="form-row" style="flex-direction:column;align-items:stretch;gap:12px">
+{% if role %}<input type="hidden" name="id" value="{{ role.id }}">{% endif %}
+
+<div style="display:flex;gap:10px;flex-wrap:wrap">
+<label style="flex:1;min-width:240px">Название роли
+<input type="text" name="name" value="{{ role.name if role else '' }}" required
+       {{ 'readonly' if role and role.is_system }} style="width:100%;margin-top:4px"></label>
+<label style="flex:2;min-width:300px">Описание (что за должность)
+<input type="text" name="description" value="{{ role.description if role else '' }}"
+       placeholder="Например: мастер участка, который может менять статусы задач" style="width:100%;margin-top:4px"></label>
+</div>
+
+{% if role and role.is_system %}
+<p class="note" style="margin:0">Название системной роли изменить нельзя — оно используется в коде.</p>
+{% endif %}
+
+{% for group in perm_groups %}
+{% set gidx = loop.index %}
+<fieldset style="border:1px solid #d6dbe4;border-radius:8px;padding:12px">
+<legend style="font-weight:600;color:#5a6b85;font-size:13px">
+{{ group }}
+<button type="button" class="btn gray" style="padding:3px 10px;font-size:11px;margin-left:8px"
+        onclick="toggleGroup('{{ gidx }}', true)">Отметить все</button>
+<button type="button" class="btn gray" style="padding:3px 10px;font-size:11px"
+        onclick="toggleGroup('{{ gidx }}', false)">Снять все</button>
+</legend>
+{% for code, meta in all_perms.items() if meta[0] == group %}
+{% set is_imm = code in immutable %}
+<label class="perm-row" data-group="{{ gidx }}"
+       style="display:block;padding:8px 0;border-bottom:1px dashed #eef1f6">
+<div style="display:flex;align-items:flex-start;gap:8px">
+<input type="checkbox" name="perms" value="{{ code }}"
+       {{ 'checked' if code in checked }}
+       {{ 'disabled' if is_imm }}>
+<div style="flex:1">
+<div style="font-weight:600">
+{% if code.startswith('auth.') %}🔐 {% endif %}
+{{ meta[1] }}
+{% if is_imm %}<span class="badge b-purple" style="margin-left:6px;font-size:10px">защищено</span>{% endif %}
+</div>
+<div class="note" style="margin-top:2px">Код: <code>{{ code }}</code></div>
+</div>
+</div>
+{% if is_imm %}<input type="hidden" name="perms" value="{{ code }}">{% endif %}
+</label>
+{% endfor %}
+</fieldset>
+{% endfor %}
+
+<div class="info" style="margin:4px 0">
+<h3>Подсказка</h3>
+<ul>
+<li>Отметки <span class="badge b-purple" style="font-size:11px">защищено</span> — неснимаемые системные права. Их нельзя снять ни в интерфейсе, ни прямой ссылкой: сервер всегда вернёт их роли.</li>
+<li>Роль «admin» всегда получает <b>все</b> права автоматически (суперпользователь) — её галочки менять не обязательно.</li>
+<li>Собственную роль редактировать нельзя — это защита от самоблокировки.</li>
+<li>Новые модули сами принесут свои группы прав в эту форму — править ядро не понадобится.</li>
+</ul>
+</div>
+
+<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+<button class="btn" type="submit">💾 Сохранить роль</button>
+<a href="{{ url_for('auth.roles_list') }}" class="btn gray">Отмена</a>
+</div>
+</form>
+
+<script>
+function toggleGroup(gidx, check) {
+    document.querySelectorAll('label.perm-row[data-group="' + gidx + '"] input[type=checkbox]')
+        .forEach(function(cb){ if (!cb.disabled) cb.checked = check; });
+}
+</script>
+{% endblock %}
