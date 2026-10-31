@@ -19,7 +19,7 @@ def list_items():
     items = query.order_by(FeedbackItem.created_at.desc()).all()
     counts = {s: FeedbackItem.query.filter_by(status=s).count() for s in STATUS_LABELS}
     total = FeedbackItem.query.count()
-    return render_template("list.html", items=items, counts=counts, total=total,
+    return render_template("feedback/list.html", items=items, counts=counts, total=total,
                            status=status, q=q, labels=STATUS_LABELS, badges=STATUS_BADGE)
 
 @feedback_bp.route("/add", methods=["POST"])
@@ -66,4 +66,4 @@ def history():
         logs = logs.join(FeedbackItem).filter(db.or_(
             FeedbackItem.text.ilike(like), FeedbackItem.author.ilike(like), FeedbackLog.who.ilike(like)))
     logs = logs.order_by(FeedbackLog.timestamp.desc()).limit(500).all()
-    return render_template("history.html", logs=logs, q=q, labels=STATUS_LABELS, badges=STATUS_BADGE)
+    return render_template("feedback/history.html", logs=logs, q=q, labels=STATUS_LABELS, badges=STATUS_BADGE)

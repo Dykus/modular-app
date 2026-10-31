@@ -22,7 +22,7 @@ def list_entries():
     entries = query.order_by(ChangelogEntry.date.desc()).all()
     db_mods = [r[0] for r in db.session.query(ChangelogEntry.module).distinct().all()]
     module_opts = sorted(set(DEFAULT_MODULES) | set(db_mods))
-    return render_template("list.html", entries=entries, types=TYPE_LABELS, badges=TYPE_BADGE,
+    return render_template("changelog/list.html", entries=entries, types=TYPE_LABELS, badges=TYPE_BADGE,
                            typ=typ, mod=mod, q=q, module_opts=module_opts)
 
 @changelog_bp.route("/add", methods=["POST"])

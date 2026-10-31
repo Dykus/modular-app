@@ -18,7 +18,7 @@ def _current_enabled():
 @settings_bp.route("/")
 def index():
     logs = SettingLog.query.order_by(SettingLog.timestamp.desc()).limit(100).all()
-    return render_template("settings.html",
+    return render_template("settings/settings.html",
                            modules=AVAILABLE_MODULES,
                            enabled=_current_enabled(),
                            app_title=get_setting("app_title", "Модульное приложение для производства"),
@@ -36,5 +36,5 @@ def save():
     mods = request.form.getlist("modules")
     set_setting("enabled_modules", json.dumps(mods, ensure_ascii=False), who)
     set_setting("feedback_require_comment_on_reject", "1" if request.form.get("require_comment") else "0", who)
-    flash("Настройки сохранены. Название, тема и требования применятся сразу. Включение/выключение модулей — после перезапуска run.py.")
+    flash("Настройки сохранены. Название, тема и требования применяются сразу. Включение/выключение модулей — после перезапуска run.py.")
     return redirect(url_for("settings.index"))

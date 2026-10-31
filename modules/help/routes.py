@@ -15,22 +15,22 @@ def index_articles():
     grouped = {}
     for a in arts:
         grouped.setdefault(a.category, []).append(a)
-    return render_template("index.html", grouped=grouped, q=q, categories=CATEGORIES, total=len(arts))
+    return render_template("help/index.html", grouped=grouped, q=q, categories=CATEGORIES, total=len(arts))
 
 @help_bp.route("/<int:aid>")
 def view(aid):
     a = HelpArticle.query.get_or_404(aid)
-    return render_template("article.html", article=a, editing=False, categories=CATEGORIES)
+    return render_template("help/article.html", article=a, editing=False, categories=CATEGORIES)
 
 @help_bp.route("/new")
 def new():
     cat = request.args.get("category", CATEGORIES[0])
-    return render_template("article.html", article=None, editing=None, categories=CATEGORIES, default_cat=cat)
+    return render_template("help/article.html", article=None, editing=None, categories=CATEGORIES, default_cat=cat)
 
 @help_bp.route("/<int:aid>/edit")
 def edit(aid):
     a = HelpArticle.query.get_or_404(aid)
-    return render_template("article.html", article=a, editing=a, categories=CATEGORIES)
+    return render_template("help/article.html", article=a, editing=a, categories=CATEGORIES)
 
 @help_bp.route("/save", methods=["POST"])
 def save():

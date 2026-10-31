@@ -10,7 +10,7 @@ def list_releases():
     edit_id = request.args.get("edit", type=int)
     editing = Release.query.get(edit_id) if edit_id else None
     releases = Release.query.order_by(Release.release_date.desc(), Release.id.desc()).all()
-    return render_template("list.html", releases=releases, editing=editing,
+    return render_template("versions/list.html", releases=releases, editing=editing,
                            statuses=STATUS_LABELS, badges=STATUS_BADGE)
 
 @versions_bp.route("/save", methods=["POST"])
@@ -68,4 +68,4 @@ def delete(rid):
 def about():
     cur = Release.query.filter_by(is_current=True).first()
     releases = Release.query.order_by(Release.release_date.desc(), Release.id.desc()).limit(10).all()
-    return render_template("about.html", cur=cur, releases=releases, statuses=STATUS_LABELS, badges=STATUS_BADGE)
+    return render_template("versions/about.html", cur=cur, releases=releases, statuses=STATUS_LABELS, badges=STATUS_BADGE)
