@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Новый пользователь' if not user else 'Правка: ' + user.username }}{% endblock %}
+{% block content %}
+<p><a href="{{ url_for('auth.users_list') }}" class="btn gray">← К списку пользователей</a></p>
+
+<div class="welcome" style="margin-top:10px">
+<h2>{{ 'Новый пользователь' if not user else 'Правка пользователя «' + user.username + '»' }}</h2>
+<p>Логин и пароль человек использует для входа. Роль определяет его возможности.</p>
+</div>
+
+<form method="post" action="{{ url_for('auth.users_save') }}" class="form-row" style="flex-direction:column;align-items:stretch;gap:10px;max-width:560px">
+{% if user %}<input type="hidden" name="id" value="{{ user.id }}">{% endif %}
+<label>Логин
+<input type="text" name="username" value="{{ user.username if user else '' }}" required style="width:100%;margin-top:4px"></label>
+<label>Имя (как показывать в шапке)
+<input type="text" name="full_name" value="{{ user.full_name if user else '' }}" style="width:100%;margin-top:4px"></label>
+<label>Email
+<input type="text" name="email" value="{{ user.email if user else '' }}" style="width:100%;margin-top:4px"></label>
+<label>Роль
+<select name="role_id" {{ 'disabled' if is_self }} style="width:100%;margin-top:4px">
+{% for r in roles %}
+<option value="{{ r.id }}" {{ 'selected' if user and user.role_id == r.id }}>{{ r.name }} — {{ r.description or '' }}</option>
+{% endfor %}
+</select></label>
+{% if is_self %}<input type="hidden" name="role_id" value="{{ user.role_id }}">{% endif %}
+{% if not user %}
+<label>Временный пароль (мин. 4 символа; сообщите его человеку лично)
+<input type="text" name="password" required minlength="4" style="width:100%;margin-top:4px"></label>
+{% endif %}
+<label style="display:flex;align-items:center;gap:8px">
+<input type="checkbox" name="is_active" value="1" {{ 'checked' if (not user) or user.is_active }} {{ 'disabled' if is_self }}>
+доступ открыт</label>
+{% if is_self %}<input type="hidden" name="is_active" value="1">{% endif %}
+<label style="display:flex;align-items:center;gap:8px">
+<input type="checkbox" name="must_change" value="1" {{ 'checked' if not user }}>
+обязать сменить пароль при первом входе</label>
+<div><button class="btn" type="submit">💾 Сохранить</button>
+<a href="{{ url_for('auth.users_list') }}" class="btn gray">Отмена</a></div>
+{% if is_self %}<p class="note">Свою роль и статус менять нельзя — это защита от самоблокировки.</p>{% endif %}
+</form>
+
+{% if user %}
+<div class="info" style="max-width:560px">
+<h3>Сбросить пароль</h3>
+<p style="font-size:13px;color:#5a6b85;margin-bottom:8px">Задайте новый временный пароль. Человек сможет войти с ним один раз — система сразу потребует смену. Сброс также снимает временную блокировку после неудачных попыток.</p>
+<form method="post" action="{{ url_for('auth.users_reset', uid=user.id) }}" style="display:flex;gap:8px;flex-wrap:wrap">
+<input type="text" name="password" required minlength="4" placeholder="Новый временный пароль" style="min-width:220px">
+<button class="btn" type="submit">Сбросить пароль</button>
+</form>
+</div>
+{% endif %}
+{% endblock %}

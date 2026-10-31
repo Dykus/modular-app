@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Журнал входов{% endblock %}
+{% block content %}
+<div class="welcome">
+<h2>Журнал входов</h2>
+<p>Кто и когда входил в систему, а также неудачные попытки (неверный пароль, закрытый доступ, блокировка). Это ваш инструмент контроля: видно подозрительные серии попыток.</p>
+</div>
+<div class="toolbar">
+<a href="{{ url_for('auth.users_list') }}" class="btn gray">← К пользователям</a>
+<form method="get" style="display:flex;gap:6px;margin-left:auto">
+<input type="text" name="q" value="{{ q }}" placeholder="Поиск по логину...">
+<button class="btn gray" type="submit">Найти</button>
+</form>
+</div>
+<table>
+<thead><tr><th>Когда</th><th>Логин</th><th>Результат</th><th>IP</th><th>Источник</th><th>Причина</th></tr></thead>
+<tbody>
+{% for l in logs %}
+<tr>
+<td style="white-space:nowrap">{{ l.timestamp.strftime('%d.%m.%Y %H:%M') }}</td>
+<td><b>{{ l.username or '—' }}</b></td>
+<td>{% if l.success %}<span class="badge b-green">успех</span>{% else %}<span class="badge b-red">отказ</span>{% endif %}</td>
+<td><code>{{ l.ip or '—' }}</code></td>
+<td>{{ l.provider }}</td>
+<td>{{ l.reason or ('вход' if l.success else '') }}</td>
+</tr>
+{% else %}
+<tr><td colspan="6" class="empty">Записей нет.</td></tr>
+{% endfor %}
+</tbody>
+</table>
+<p class="note">Показаны последние 300 записей{% if q %} по запросу «{{ q }}»{% endif %}.</p>
+{% endblock %}

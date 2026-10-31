@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}Пользователи{% endblock %}
+{% block content %}
+<div class="welcome">
+<h2>Пользователи</h2>
+<p>Кто имеет доступ к системе и под какой ролью. Роль определяет, что человеку позволено — список прав ролей смотрите в разделе «Роли».</p>
+</div>
+
+<div class="toolbar">
+<a href="{{ url_for('auth.users_new') }}" class="btn">+ Новый пользователь</a>
+<a href="{{ url_for('auth.login_log') }}" class="btn gray">🕓 Журнал входов</a>
+<a href="{{ url_for('auth.roles_list') }}" class="btn gray">🛡 Роли</a>
+</div>
+
+<table>
+<thead>
+<tr><th>Логин</th><th>Имя</th><th>Роль</th><th>Источник</th><th>Статус</th><th>Последний вход</th><th>Действия</th></tr>
+</thead>
+<tbody>
+{% for row in rows %}
+<tr>
+<td><b>{{ row.u.username }}</b>{% if row.u.id == current_user.id %} <span class="badge b-yellow">вы</span>{% endif %}</td>
+<td>{{ row.u.full_name or '—' }}</td>
+<td><span class="badge b-purple">{{ row.u.role_rel.name if row.u.role_rel else '—' }}</span></td>
+<td>{{ 'локальный' if row.u.auth_source == 'local' else row.u.auth_source }}</td>
+<td><span class="badge {{ row.cls }}">{{ row.status }}</span>{% if row.u.must_change_password %} <span class="badge b-gray" title="при входе придётся сменить пароль">смена пароля</span>{% endif %}</td>
+<td style="white-space:nowrap">{{ row.u.last_login.strftime('%d.%m.%Y %H:%M') if row.u.last_login else '—' }}</td>
+<td style="white-space:nowrap">
+<a href="{{ url_for('auth.users_edit', uid=row.u.id) }}" class="btn gray" style="padding:4px 10px;font-size:12px">Править</a>
+{% if row.u.id != current_user.id %}
+<form method="post" action="{{ url_for('auth.users_toggle', uid=row.u.id) }}" style="display:inline">
+<button class="btn {{ 'gray' if row.u.is_active else '' }}" type="submit" style="padding:4px 10px;font-size:12px">{{ 'Закрыть' if row.u.is_active else 'Открыть' }}</button>
+</form>
+<form method="post" action="{{ url_for('auth.users_delete', uid=row.u.id) }}" style="display:inline"
+      onsubmit="return confirm('Удалить пользователя {{ row.u.username }}?')">
+<button class="btn red" type="submit" style="padding:4px 10px;font-size:12px">Удалить</button>
+</form>
+{% endif %}
+</td>
+</tr>
+{% else %}
+<tr><td colspan="7" class="empty">Пользователей нет.</td></tr>
+{% endfor %}
+</tbody>
+</table>
+
+<h3 style="margin:20px 0 10px;color:#667eea">Последние действия над пользователями</h3>
+<table>
+<thead><tr><th>Когда</th><th>Кто</th><th>Действие</th><th>Подробности</th></tr></thead>
+<tbody>
+{% for a in audits %}
+<tr>
+<td style="white-space:nowrap">{{ a.timestamp.strftime('%d.%m.%Y %H:%M') }}</td>
+<td><b>{{ a.user.username if a.user else '—' }}</b></td>
+<td>{{ a.action }}</td>
+<td>{{ a.changes or '—' }}</td>
+</tr>
+{% else %}
+<tr><td colspan="4" class="empty">Действий пока нет.</td></tr>
+{% endfor %}
+</tbody>
+</table>
+<p class="note">Защиты: нельзя удалить/закрыть/разжаловать себя и последнего активного администратора. Каждое действие пишется в эту ленту.</p>
+{% endblock %}
