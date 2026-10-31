@@ -10,8 +10,6 @@ from core.permissions import collect, MODULE_PERMS
 
 db = SQLAlchemy()
 
-# Stranicy, kotorye otkryty BEZ vhoda kogda avtorizaciya vklyuchena:
-# tolko vhod/vihod/smena parolya i statika. Glavnaya - UZHE net (treboet vhoda).
 AUTH_WHITELIST = {"auth.login", "auth.do_login", "auth.logout",
                   "auth.change_password", "auth.do_change_password", "static"}
 
@@ -26,13 +24,14 @@ def create_app():
     login_manager.init_app(app)
     os.makedirs(config.DATA_DIR, exist_ok=True)
 
-    collect()  # sobiraem prava iz vseh moduley (odn raz)
+    collect()
 
     from modules.feedback import models as feedback_models  # noqa
     from modules.settings import models as settings_models  # noqa
     from modules.changelog import models as changelog_models  # noqa
     from modules.versions import models as versions_models  # noqa
     from modules.help import models as help_models  # noqa
+    from modules.manual import models as manual_models  # noqa
     from core import models as core_models  # noqa
 
     with app.app_context():
@@ -42,7 +41,8 @@ def create_app():
         from modules.changelog.models import seed as seed_changelog
         from modules.versions.models import seed as seed_versions
         from modules.help.models import seed as seed_help
-        seed_changelog(); seed_versions(); seed_help()
+        from modules.manual.models import seed as seed_manual
+        seed_changelog(); seed_versions(); seed_help(); seed_manual()
         from modules.settings.models import get_setting, get_bool
         raw = get_setting("enabled_modules", "")
         if raw.strip():
@@ -71,15 +71,12 @@ def create_app():
 
     @app.errorhandler(403)
     def forbidden(e):
-        """Kogda @perm govorit 'net prava' - risuem eto krasivo, a ne suhoi Flask-bug."""
         return render_template("403.html"), 403
 
     @app.before_request
     def guard():
-        """Vratara u vhidnoi dveri: proveryaet TOL'KO 'vooshel li'.
-        Prava smotrit dekorator perm() uzhe vnutri stranic."""
         if not app.config.get("AUTH_ENABLED"):
-            return None                       # switch off - vse prohodiat
+            return None
         ep = request.endpoint
         if ep in AUTH_WHITELIST:
             return None
@@ -92,27 +89,21 @@ def create_app():
 
     @app.context_processor
     def inject_settings():
-        """Dostaem v KAZHDII shablon: nazvanie, temu, versiyu, menu i funkciyu can().
-        can(pravo) - chtoby v shablone pisat' {% if can('...') %}."""
         from modules.settings.models import get_setting
         from modules.versions.models import Release
         em = app.config.get("ENABLED_MODULES", {})
         auth_on = app.config.get("AUTH_ENABLED", False)
-
-        # Fil'tr menu: pokazyvaem modul tol'ko esli u cheloveka est' hotya by
-        # ODO pravo etogo module (albo on superuser). Pri switch off - bez filtra.
         if not auth_on:
             menu = [{"name": v["name"], "url": url_for(v["endpoint"])} for v in em.values()]
         elif not current_user.is_authenticated:
             menu = []
         else:
-            codes = user_perm_codes(current_user)   # None = superuser = vse
+            codes = user_perm_codes(current_user)
             menu = []
             for v in em.values():
                 need = MODULE_PERMS.get(v["key"], [])
                 if codes is None or (need and (set(need) & codes)):
                     menu.append({"name": v["name"], "url": url_for(v["endpoint"])})
-
         cur = Release.query.filter_by(is_current=True).first()
         def can(code):
             return user_has_perm(current_user._get_current_object() if current_user.is_authenticated else None, code)

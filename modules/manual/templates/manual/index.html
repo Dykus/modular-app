@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Руководство по эксплуатации{% endblock %}
+{% block content %}
+<div class="no-print">
+<div class="welcome">
+<h2>📘 Руководство по эксплуатации</h2>
+<p>Полное описание программы для руководителя и пользователей. Электронная версия всегда свежее бумажной; перепечатывайте после крупных обновлений.</p>
+</div>
+<div class="toolbar">
+<a href="{{ url_for('manual.print_view') }}" class="btn">🖨 Версия для печати</a>
+<button class="btn gray" onclick="window.print()">Печать этой страницы</button>
+</div>
+<h3 style="color:#667eea">Содержание</h3>
+<ol style="margin-left:22px;line-height:1.9">
+{% for s in sections %}<li><a href="#sec-{{ s.code }}" style="color:#2c3e50">{{ s.title }}</a></li>{% endfor %}
+</ol>
+</div>
+
+{% if print_mode %}
+<div class="print-only" style="text-align:center;margin:0 0 24px">
+<h2 style="color:#000">{{ app_title }}</h2>
+<p style="color:#000">Руководство по эксплуатации · версия {{ app_version }} · печать от {{ now_str }}</p>
+</div>
+{% endif %}
+
+{% for s in sections %}
+<section id="sec-{{ s.code }}" style="margin:28px 0">
+<h3 style="color:#667eea;border-bottom:2px solid #e1e6ef;padding-bottom:6px">{{ loop.index }}. {{ s.title }}</h3>
+<pre style="white-space:pre-wrap;font-family:inherit;line-height:1.75;margin:12px 0;font-size:15px">{{ s.body }}</pre>
+{% if can('manual.manage') and not print_mode %}
+<p class="no-print" style="margin-top:6px">
+<a href="{{ url_for('manual.edit', sid=s.id) }}" class="btn gray" style="padding:4px 10px;font-size:12px">Править раздел</a>
+<span class="note">обновлён {{ s.updated_at.strftime('%d.%m.%Y') }} · {{ s.updated_by }}</span>
+</p>
+{% endif %}
+</section>
+{% endfor %}
+
+{% if print_mode %}
+<p style="margin-top:30px;font-size:12px;color:#000">Конец руководства. Электронная версия (всегда свежее): раздел «Руководство» в программе.</p>
+{% endif %}
+{% endblock %}

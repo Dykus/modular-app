@@ -1,0 +1,16 @@
+/* Pravila pechati: v bumagu uhodit tolko tekst, bez menu/knopok/form. */
+.print-only { display: none; }
+
+@media print {
+  header, nav, .toolbar, .btn, form, footer, .theme-btn, .userbox,
+  .no-print, .flash { display: none !important; }
+  .print-only { display: block !important; }
+  body, body.dark { background: #fff !important; color: #000 !important; }
+  main { box-shadow: none !important; border: none !important; padding: 0 !important; background: #fff !important; }
+  .container { max-width: 100% !important; padding: 0 !important; }
+  a { color: #000 !important; text-decoration: none !important; }
+  h2, h3 { color: #000 !important; page-break-after: avoid; }
+  pre { color: #000 !important; }
+  section { page-break-inside: auto; }
+  .badge { border: 1px solid #000; color: #000 !important; background: #fff !important; }
+}

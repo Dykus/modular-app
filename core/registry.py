@@ -1,4 +1,4 @@
-"""Reestr dostupnyh moduley."""
+"""Reestr dostupnyh moduley (s modulem Rukovodstvo)."""
 
 AVAILABLE_MODULES = [
     {"key": "feedback",   "name": "Задачи отдела",
@@ -16,5 +16,8 @@ AVAILABLE_MODULES = [
     {"key": "help",       "name": "Справка",
      "endpoint": "help.index_articles",
      "import_path": "modules.help.routes",       "bp_attr": "help_bp"},
+    {"key": "manual",     "name": "Руководство",
+     "endpoint": "manual.index",
+     "import_path": "modules.manual.routes",     "bp_attr": "manual_bp"},
 ]
 SYSTEM_MODULE_KEYS = ["settings"]
