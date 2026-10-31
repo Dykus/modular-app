@@ -6,7 +6,7 @@ from core.models import Role, RolePermission, User
 from modules.settings.models import Setting
 
 SYSTEM_ROLES = [
-    ("admin",   "Administrator — полный доступ, нельзя удалить", True,
+    ("admin",   "Администратор — полный доступ, нельзя удалить", True,
      ["auth.manage_users", "auth.manage_roles", "auth.security"]),
     ("manager", "Руководитель — управляет данными и справкой", True, []),
     ("staff",   "Сотрудник — подаёт задачи, читает остальное", True, []),
@@ -44,7 +44,7 @@ def run_seed():
     admin = User.query.filter_by(username="admin").first()
     if not admin:
         admin = User(
-            username="admin", full_name="Administrator",
+            username="admin", full_name="Администратор",
             password_hash=hash_password("admin123"),
             role_id=role_map["admin"].id, auth_source="local",
             is_active=True, must_change_password=True,
@@ -64,9 +64,6 @@ def run_seed():
         db.session.add(Setting(key="role_defaults_seeded", value="1"))
     db.session.commit()
 
-    # Vremennyi testovyi chitatel dlya proverki zamkov (2a-2ii).
-    # U nego rol' viewer = tolko *.view prava, nichego menyat' ne mozhet.
-    # Udalis' ili zamenit' real'nymi lyud'mi mozhno na Shage 2b (ekran 'Pol'zovateli').
     tv = User.query.filter_by(username="test_viewer").first()
     if not tv:
         tv = User(
