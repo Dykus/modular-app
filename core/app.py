@@ -1,16 +1,19 @@
 """Yadro - sozdanie Flask app + avtorizaciya + dinamicheskie moduli"""
-from flask import Flask, url_for, redirect, request, flash
+from flask import Flask, url_for, redirect, request, render_template
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import current_user
 import os, json, importlib
 import config
 from core.registry import AVAILABLE_MODULES
-from core.auth import login_manager
+from core.auth import login_manager, user_has_perm, user_perm_codes
+from core.permissions import collect, MODULE_PERMS
 
 db = SQLAlchemy()
 
-AUTH_WHITELIST = {"auth.login", "auth.do_login", "auth.logout", "auth.change_password",
-                  "auth.do_change_password", "static", "main.index"}
+# Stranicy, kotorye otkryty BEZ vhoda kogda avtorizaciya vklyuchena:
+# tolko vhod/vihod/smena parolya i statika. Glavnaya - UZHE net (treboet vhoda).
+AUTH_WHITELIST = {"auth.login", "auth.do_login", "auth.logout",
+                  "auth.change_password", "auth.do_change_password", "static"}
 
 def create_app():
     app = Flask(__name__,
@@ -22,6 +25,8 @@ def create_app():
     db.init_app(app)
     login_manager.init_app(app)
     os.makedirs(config.DATA_DIR, exist_ok=True)
+
+    collect()  # sobiraem prava iz vseh moduley (odn raz)
 
     from modules.feedback import models as feedback_models  # noqa
     from modules.settings import models as settings_models  # noqa
@@ -64,33 +69,61 @@ def create_app():
             registered[m["key"]] = m
     app.config["ENABLED_MODULES"] = registered
 
+    @app.errorhandler(403)
+    def forbidden(e):
+        """Kogda @perm govorit 'net prava' - risuem eto krasivo, a ne suhoi Flask-bug."""
+        return render_template("403.html"), 403
+
     @app.before_request
     def guard():
+        """Vratara u vhidnoi dveri: proveryaet TOL'KO 'vooshel li'.
+        Prava smotrit dekorator perm() uzhe vnutri stranic."""
         if not app.config.get("AUTH_ENABLED"):
-            return None
+            return None                       # switch off - vse prohodiat
         ep = request.endpoint
         if ep in AUTH_WHITELIST:
             return None
         if not current_user.is_authenticated:
             return redirect(url_for("auth.login"))
-        if current_user.must_change_password and ep not in ("auth.change_password", "auth.do_change_password", "auth.logout"):
+        if current_user.must_change_password and ep not in (
+                "auth.change_password", "auth.do_change_password", "auth.logout"):
             return redirect(url_for("auth.change_password"))
         return None
 
     @app.context_processor
     def inject_settings():
+        """Dostaem v KAZHDII shablon: nazvanie, temu, versiyu, menu i funkciyu can().
+        can(pravo) - chtoby v shablone pisat' {% if can('...') %}."""
         from modules.settings.models import get_setting
         from modules.versions.models import Release
         em = app.config.get("ENABLED_MODULES", {})
-        menu = [{"name": v["name"], "url": url_for(v["endpoint"])} for v in em.values()]
+        auth_on = app.config.get("AUTH_ENABLED", False)
+
+        # Fil'tr menu: pokazyvaem modul tol'ko esli u cheloveka est' hotya by
+        # ODO pravo etogo module (albo on superuser). Pri switch off - bez filtra.
+        if not auth_on:
+            menu = [{"name": v["name"], "url": url_for(v["endpoint"])} for v in em.values()]
+        elif not current_user.is_authenticated:
+            menu = []
+        else:
+            codes = user_perm_codes(current_user)   # None = superuser = vse
+            menu = []
+            for v in em.values():
+                need = MODULE_PERMS.get(v["key"], [])
+                if codes is None or (need and (set(need) & codes)):
+                    menu.append({"name": v["name"], "url": url_for(v["endpoint"])})
+
         cur = Release.query.filter_by(is_current=True).first()
+        def can(code):
+            return user_has_perm(current_user._get_current_object() if current_user.is_authenticated else None, code)
         return {
             "app_title":  get_setting("app_title", "Модульное приложение для производства"),
             "app_footer": get_setting("app_footer", "ядро + модули | Flask + SQLAlchemy"),
             "app_version": cur.version if cur else "dev",
             "theme":      get_setting("theme", "light"),
             "menu":       menu,
-            "auth_enabled": app.config.get("AUTH_ENABLED", False),
+            "auth_enabled": auth_on,
+            "can":        can,
         }
 
     return app
