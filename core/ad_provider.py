@@ -1,20 +1,12 @@
-"""Active Directory provayder: proverka parolya i avtoprovisioning.
+"""Active Directory provayder: proverka parolya, provisioning, diagnostika.
 
-Rabotaet v rezhime graceful-degradation:
-  - esli AD vyklyuchen v Nastroikah - srazu vozvraschaem 'net'
-  - esli AD vklyuchen, no svyaz ne podnyalas - vozvraschaem 'net' i log 'AD nedostupen'
-  - esli biblioteka ldap3 ne ustanovlena - to zhe samoe
-
-Bezopasnost:
-  - Nikogda ne logiruem sam parol
-  - TLS-nastrroyki berem iz BD, po umolchaniyu - bez TLS (na 389)
-  - StartTLS i LDAPS podderzhivaemsya otdelno
+Graceful-degradation: esli AD vyklyuchen/nedostupen - vozvraschaem None/False,
+prilozhenie prodolžaet rabotat na lokalnyh parolyah (esli razreshen fallback).
 """
 
 from modules.settings.models import get_setting, get_bool
 
 def ldap3_available():
-    """True, esli biblioteka ldap3 ustanovlena i importiruetsya."""
     try:
         import ldap3  # noqa
         return True
@@ -22,141 +14,180 @@ def ldap3_available():
         return False
 
 def _get_config():
-    """Sobiraem nastroiki AD iz BD v odin slovar."""
     return {
-        "enabled":     get_bool("ad_enabled", False),
-        "host":        get_setting("ad_host", "").strip(),
-        "port":        int(get_setting("ad_port", "389") or "389"),
-        "security":    get_setting("ad_security", "none"),
-        "base_dn":     get_setting("ad_base_dn", "").strip(),
-        "bind_tmpl":   get_setting("ad_bind_template", "").strip(),
-        "search_flt":  get_setting("ad_search_filter", "(sAMAccountName=%s)"),
-        "def_role":    get_setting("ad_default_role", "staff"),
-        "fn_attr":     get_setting("ad_provision_fullname_attr", "displayName"),
-        "mail_attr":   get_setting("ad_provision_email_attr", "mail"),
-        "fallback":    get_bool("ad_allow_fallback_local", True),
+        "enabled":    get_bool("ad_enabled", False),
+        "host":       get_setting("ad_host", "").strip(),
+        "port":       int(get_setting("ad_port", "389") or "389"),
+        "security":   get_setting("ad_security", "none"),
+        "base_dn":    get_setting("ad_base_dn", "").strip(),
+        "bind_tmpl":  get_setting("ad_bind_template", "").strip(),
+        "search_flt": get_setting("ad_search_filter", "(sAMAccountName=%s)"),
+        "def_role":   get_setting("ad_default_role", "staff"),
+        "fn_attr":    get_setting("ad_provision_fullname_attr", "displayName"),
+        "mail_attr":  get_setting("ad_provision_email_attr", "mail"),
+        "fallback":   get_bool("ad_allow_fallback_local", True),
     }
 
-def try_ad_auth(username, log_fn=None):
-    """Proveryaet parol v AD. Vozvraschaet dict:
-      {"ok": True, "attrs": {"fullname": ..., "email": ...}}   - uspeh
-      {"ok": False, "reason": "..."}                           - otkaz
-      {"ok": None, "reason": "..."}                            - AD nedostupen / vyklyuchen
-
-    Parol peredayotsya otdelno, v log NE popadaet.
-    """
-    if not ldap3_available():
-        return {"ok": None, "reason": "библиотека ldap3 не установлена"}
-
-    cfg = _get_config()
-    if not cfg["enabled"] or not cfg["host"]:
-        return {"ok": None, "reason": "AD выключен или не настроен"}
-
-    import ldap3
-    import ssl
-
-    # 1) Soedinenie s serverom (bez bind poka)
+def _server_and_tls(cfg):
+    import ldap3, ssl
     use_ssl = (cfg["security"] == "ldaps")
-    tls_cfg = None
-    if cfg["security"] == "starttls":
-        # cert_reqs=CERT_NONE - dlya samopodpisannyh certifikatov vnutrennih AD
-        tls_cfg = ldap3.Tls(validate=ssl.CERT_NONE)
-    elif use_ssl:
-        tls_cfg = ldap3.Tls(validate=ssl.CERT_NONE)
+    tls = ldap3.Tls(validate=ssl.CERT_NONE) if cfg["security"] in ("starttls", "ldaps") else None
+    server = ldap3.Server(cfg["host"], port=cfg["port"], use_ssl=use_ssl, tls=tls,
+                          get_info=ldap3.NONE, connect_timeout=5)
+    return server, use_ssl
 
-    try:
-        server = ldap3.Server(cfg["host"], port=cfg["port"],
-                              use_ssl=use_ssl, tls=tls_cfg,
-                              get_info=ldap3.NONE, connect_timeout=5)
-    except Exception as e:
-        return {"ok": None, "reason": "не удалось создать соединение: " + str(e)[:120]}
-
-    # 2) Poisk DN polzovatelya cherez anonimnyi bind (esli razresheno)
-    #    libo prosto sobiraem DN po shablonu, esli on zadan.
-    user_dn = None
-    if cfg["bind_tmpl"] and "%s" in cfg["bind_tmpl"]:
-        # Shablon vida COMPANY\user ili user@company.local - eto UPN, ne DN,
-        # no ldap3 prinimaet obe formy kak "user" pri SIMPLE bind.
-        bind_identity = cfg["bind_tmpl"] % username
-    else:
-        # Ishchem v base_dn po search_filter
-        bind_identity = None
-        try:
-            anon = ldap3.Connection(server, auto_bind=False)
-            anon.open()
-            if cfg["security"] == "starttls":
-                anon.start_tls()
-            flt = cfg["search_flt"].replace("%s", ldap3.utils.conv.escape_filter_chars(username))
-            anon.search(cfg["base_dn"], flt,
-                        attributes=[cfg["fn_attr"], cfg["mail_attr"], "sAMAccountName"])
-            if anon.entries:
-                user_dn = str(anon.entries[0].entry_dn)
-            anon.unbind()
-        except Exception as e:
-            if log_fn:
-                log_fn("AD: poisk DN upal: " + str(e)[:120])
-            return {"ok": None, "reason": "AD недоступен (поиск DN)"}
-
-    if not bind_identity and not user_dn:
-        return {"ok": False, "reason": "пользователь не найден в AD"}
-
-    # 3) PROVERKA PAROLYA: SIMPLE bind ot imeni polzovatelya.
-    #    Eto i est moment autentifikacii - esli parol neveren, bind upadet.
-    who = bind_identity if bind_identity else user_dn
-    # parol berem iz argumenta vnizu, no funkciu vyzyvaet do_login,
-    # poetomu peredayom ego cherez zamikanie.
-    def _bind(password):
-        try:
-            conn = ldap3.Connection(server, user=who, password=password,
-                                    authentication=ldap3.SIMPLE, auto_bind=False)
-            conn.open()
-            if cfg["security"] == "starttls":
-                conn.start_tls()
-            if not conn.bind():
-                return False, None
-            # 4) Esli OK - sobiraem atributy (dlya provisioningu)
-            attrs = {}
-            if user_dn:
-                try:
-                    conn.search(user_dn, "(objectClass=*)", attributes=[cfg["fn_attr"], cfg["mail_attr"]])
-                    if conn.entries:
-                        e = conn.entries[0]
-                        attrs["fullname"] = str(e[cfg["fn_attr"]].value) if cfg["fn_attr"] in e else ""
-                        attrs["email"]  = str(e[cfg["mail_attr"]].value) if cfg["mail_attr"] in e else ""
-                except Exception:
-                    pass
-            else:
-                # Poisk posle uspeshnogo binda
-                try:
-                    flt = cfg["search_flt"].replace("%s", ldap3.utils.conv.escape_filter_chars(username))
-                    conn.search(cfg["base_dn"], flt, attributes=[cfg["fn_attr"], cfg["mail_attr"]])
-                    if conn.entries:
-                        e = conn.entries[0]
-                        attrs["fullname"] = str(e[cfg["fn_attr"]].value) if cfg["fn_attr"] in e else ""
-                        attrs["email"]  = str(e[cfg["mail_attr"]].value) if cfg["mail_attr"] in e else ""
-                except Exception:
-                    pass
-            try:
-                conn.unbind()
-            except Exception:
-                pass
-            return True, attrs
-        except ldap3.core.exceptions.LDAPInvalidCredentialsResult:
-            return False, None
-        except Exception as e:
-            return None, str(e)[:120]
-    return {"_bind": _bind, "who": who, "ok": True}  # marker: 'proverit parol nuzhno otdelno'
+def _search_dn(conn, cfg, username):
+    """Ishchet DN polzovatelya po base_dn + filtr. Vozvraschaet (dn, attrs)."""
+    import ldap3
+    flt = cfg["search_flt"].replace("%s", ldap3.utils.conv.escape_filter_chars(username))
+    conn.search(cfg["base_dn"], flt, attributes=[cfg["fn_attr"], cfg["mail_attr"], "sAMAccountName"])
+    if not conn.entries:
+        return None, {}
+    e = conn.entries[0]
+    attrs = {
+        "fullname": str(e[cfg["fn_attr"]].value) if cfg["fn_attr"] in e else "",
+        "email":    str(e[cfg["mail_attr"]].value) if cfg["mail_attr"] in e else "",
+    }
+    return str(e.entry_dn), attrs
 
 def verify_ad_password(username, password):
-    """Verhneurovnevaya funkciya dlya core.auth: True/False/None (None = AD nedostupen).
-    Vozvraschaet kornež (rezultat, attrs_ili_reason).
-    """
-    r = try_ad_auth(username)
-    if r["ok"] is None:
-        return None, r.get("reason", "")
-    if r["ok"] is False:
-        return False, r.get("reason", "")
-    ok, attrs = r["_bind"](password)
-    if ok is None:
-        return None, attrs  # zdes attrs - eto reason
-    return ok, (attrs if ok else "неверный пароль AD")
+    """Glavnaya funkciya dlya core.auth.
+    Vozvraschaet (True, attrs) / (False, reason) / (None, reason-AD-nedostupen)."""
+    if not ldap3_available():
+        return None, "библиотека ldap3 не установлена"
+    cfg = _get_config()
+    if not cfg["enabled"] or not cfg["host"]:
+        return None, "AD выключен или не настроен"
+    import ldap3
+    try:
+        server, use_ssl = _server_and_tls(cfg)
+    except Exception as e:
+        return None, "не удалось создать соединение: " + str(e)[:120]
+
+    bind_identity = None
+    user_dn = None
+    attrs = {}
+    if cfg["bind_tmpl"] and "%s" in cfg["bind_tmpl"]:
+        bind_identity = cfg["bind_tmpl"] % username
+    else:
+        # poisk DN: nuzhen anonimonnyi bind; esli on zapreshchen - prosim shablon
+        try:
+            probe = ldap3.Connection(server, auto_bind=False)
+            probe.open()
+            if cfg["security"] == "starttls":
+                probe.start_tls()
+            if not probe.bind():
+                return None, "анонимный bind отклонён — укажите шаблон входа в настройках AD"
+            user_dn, attrs = _search_dn(probe, cfg, username)
+            try: probe.unbind()
+            except Exception: pass
+        except Exception as e:
+            return None, "AD недоступен (поиск DN): " + str(e)[:120]
+        if not user_dn:
+            return False, "пользователь не найден в AD"
+
+    who = bind_identity if bind_identity else user_dn
+    try:
+        conn = ldap3.Connection(server, user=who, password=password,
+                                authentication=ldap3.SIMPLE, auto_bind=False)
+        conn.open()
+        if cfg["security"] == "starttls":
+            conn.start_tls()
+        if not conn.bind():
+            return False, "неверный пароль AD"
+        if not attrs and cfg["base_dn"]:
+            try:
+                _, attrs = _search_dn(conn, cfg, username)
+            except Exception:
+                attrs = {}
+        try: conn.unbind()
+        except Exception: pass
+        return True, attrs
+    except ldap3.core.exceptions.LDAPInvalidCredentialsResult:
+        return False, "неверный пароль AD"
+    except Exception as e:
+        return None, "AD недоступен (bind): " + str(e)[:120]
+
+def test_connection(test_user="", test_password=""):
+    """Poshagovaya diagnostika dlya knopki 'Proverit svyaz'.
+    Vozvraschaet spisok (ok: True/False, tekst). Ostanavlivaetsya na pervom False."""
+    steps = []
+    def add(ok, text):
+        steps.append((ok, text))
+        return ok
+    if not ldap3_available():
+        add(False, "Шаг 1. Библиотека ldap3 не установлена: python -m pip install ldap3")
+        return steps
+    add(True, "Шаг 1. Библиотека ldap3 установлена")
+    cfg = _get_config()
+    if not cfg["host"]:
+        add(False, "Шаг 2. Не указан хост контроллера домена")
+        return steps
+    add(True, "Шаг 2. Хост: %s:%d, защита: %s" % (cfg["host"], cfg["port"], cfg["security"]))
+    import ldap3
+    try:
+        server, use_ssl = _server_and_tls(cfg)
+        conn = ldap3.Connection(server, auto_bind=False)
+        conn.open()
+    except Exception as e:
+        add(False, "Шаг 3. TCP-соединение не открылось: " + str(e)[:160])
+        return steps
+    add(True, "Шаг 3. TCP-соединение открыто")
+    if cfg["security"] == "starttls":
+        try:
+            conn.start_tls()
+            add(True, "Шаг 4. StartTLS поднят")
+        except Exception as e:
+            add(False, "Шаг 4. StartTLS не поднялся: " + str(e)[:160])
+            try: conn.unbind()
+            except Exception: pass
+            return steps
+    else:
+        add(True, "Шаг 4. TLS не требуется (выбран режим без него)")
+
+    if test_user and test_password:
+        who = (cfg["bind_tmpl"] % test_user) if (cfg["bind_tmpl"] and "%s" in cfg["bind_tmpl"]) else test_user
+        try:
+            c2 = ldap3.Connection(server, user=who, password=test_password,
+                                  authentication=ldap3.SIMPLE, auto_bind=False)
+            c2.open()
+            if cfg["security"] == "starttls":
+                c2.start_tls()
+            if c2.bind():
+                add(True, "Шаг 5. Проверочный вход (bind) успешен: " + who)
+                if cfg["base_dn"]:
+                    try:
+                        dn, _ = _search_dn(c2, cfg, test_user)
+                        if dn:
+                            add(True, "Шаг 6. Поиск в Base DN нашёл пользователя: " + dn)
+                        else:
+                            add(False, "Шаг 6. Поиск в Base DN не нашёл пользователя — проверьте Base DN и фильтр")
+                    except Exception as e:
+                        add(False, "Шаг 6. Поиск не выполнился: " + str(e)[:160])
+                else:
+                    add(True, "Шаг 6. Base DN не задан — поиск пропущен (работает вход по шаблону)")
+                try: c2.unbind()
+                except Exception: pass
+            else:
+                add(False, "Шаг 5. Bind отклонён (неверный пароль/учётка заблокирована): " + str(c2.result)[:120])
+                try: c2.unbind()
+                except Exception: pass
+        except Exception as e:
+            add(False, "Шаг 5. Bind не выполнился: " + str(e)[:160])
+    else:
+        try:
+            if conn.bind():
+                add(True, "Шаг 5. Анонимный bind выполнен (проверочный логин не указан)")
+                if cfg["base_dn"]:
+                    try:
+                        conn.search(cfg["base_dn"], "(objectClass=user)", attributes=["cn"], size_limit=5)
+                        add(True, "Шаг 6. Поиск в Base DN вернул записей: %d" % len(conn.entries))
+                    except Exception as e:
+                        add(False, "Шаг 6. Поиск в Base DN не выполнился: " + str(e)[:160])
+            else:
+                add(False, "Шаг 5. Анонимный bind отклонён: укажите проверочный логин и пароль")
+        except Exception as e:
+            add(False, "Шаг 5. Bind не выполнился: " + str(e)[:160])
+    try: conn.unbind()
+    except Exception: pass
+    return steps

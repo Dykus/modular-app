@@ -7,14 +7,12 @@
 </div>
 
 <form method="post" action="{{ url_for('settings.save') }}" class="form-row" style="flex-direction:column;align-items:stretch;gap:12px">
-
 <div style="display:flex;gap:10px;flex-wrap:wrap">
 <label style="flex:1;min-width:240px">Название приложения (в шапке)
 <input type="text" name="app_title" value="{{ app_title }}" style="width:100%;margin-top:4px"></label>
 <label style="flex:1;min-width:240px">Подпись в футере
 <input type="text" name="app_footer" value="{{ app_footer }}" placeholder="(пусто = стандартная)" style="width:100%;margin-top:4px"></label>
 </div>
-
 <div style="display:flex;gap:18px;flex-wrap:wrap;align-items:center">
 <label>Тема по умолчанию
 <select name="theme">
@@ -37,7 +35,7 @@
 <label>Блокировка на, минут
 <input type="number" name="lock_minutes" value="{{ lock_minutes }}" min="1" style="width:80px;margin-left:6px"></label>
 </div>
-<p class="note" style="margin-top:8px">Пока выключено — система открыта по сети. Включай только после того, как проверил вход под <code>admin</code>.</p>
+<p class="note" style="margin-top:8px">Пока выключено — система открыта по сети. Включай только после проверки входа под <code>admin</code>.</p>
 </fieldset>
 
 <fieldset style="border:1px solid #d6dbe4;border-radius:8px;padding:12px">
@@ -46,12 +44,11 @@
 <div class="flash" style="margin:0 0 10px">Библиотека <code>ldap3</code> не установлена. Выполните <code>python -m pip install ldap3</code> на сервере и перезапустите программу.</div>
 {% endif %}
 {% if not can('auth.security') %}
-<p class="note" style="margin:0 0 10px;color:#e74c3c">У вашей роли нет права <code>auth.security</code> — раздел только для чтения. Изменить настройки AD может администратор или руководитель.</p>
+<p class="note" style="margin:0 0 10px;color:#e74c3c">У вашей роли нет права <code>auth.security</code> — раздел только для чтения.</p>
 {% endif %}
 <label style="display:flex;align-items:center;gap:6px;margin-bottom:10px">
 <input type="checkbox" name="ad_enabled" value="1" {{ 'checked' if ad_enabled }} {{ 'disabled' if not can('auth.security') }}>
 Включить вход через Active Directory</label>
-
 <div style="display:flex;gap:10px;flex-wrap:wrap">
 <label style="flex:2;min-width:240px">Хост контроллера домена
 <input type="text" name="ad_host" value="{{ ad_host }}" placeholder="dc.company.local или 192.168.1.10" {{ 'disabled' if not can('auth.security') }} style="width:100%;margin-top:4px"></label>
@@ -64,17 +61,14 @@
 <option value="ldaps"    {{ 'selected' if ad_security=='ldaps' }}>LDAPS/SSL (636)</option>
 </select></label>
 </div>
-
 <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:6px">
 <label style="flex:1;min-width:260px">Base DN (корень поиска пользователей)
 <input type="text" name="ad_base_dn" value="{{ ad_base_dn }}" placeholder="DC=company,DC=local" {{ 'disabled' if not can('auth.security') }} style="width:100%;margin-top:4px"></label>
-<label style="flex:1;min-width:260px">Шаблон входа (один из двух способов, можно оставить пустым)
+<label style="flex:1;min-width:260px">Шаблон входа (можно оставить пустым)
 <input type="text" name="ad_bind_template" value="{{ ad_bind_template }}" placeholder="COMPANY\%s  или  %s@company.local" {{ 'disabled' if not can('auth.security') }} style="width:100%;margin-top:4px"></label>
 </div>
-
-<label style="margin-top:6px">Фильтр поиска пользователя (используется, если шаблон входа пустой)
+<label style="margin-top:6px">Фильтр поиска пользователя (если шаблон входа пустой)
 <input type="text" name="ad_search_filter" value="{{ ad_search_filter }}" {{ 'disabled' if not can('auth.security') }} style="width:100%;margin-top:4px"></label>
-
 <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:6px">
 <label style="flex:1;min-width:220px">Роль для авто-создаваемых из AD
 <select name="ad_default_role" {{ 'disabled' if not can('auth.security') }} style="width:100%;margin-top:4px">
@@ -85,14 +79,23 @@
 Разрешить локальные пароли, если AD недоступен</label>
 </div>
 
+<div style="margin-top:12px;padding-top:10px;border-top:1px dashed #cdd4e0">
+<b style="font-size:13px;color:#5a6b85">🔌 Проверка связи с AD (данные проверки не сохраняются)</b>
+<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">
+<input type="text" form="adtest-form" name="test_user" placeholder="Проверочный логин (необяз.)" style="min-width:180px">
+<input type="password" form="adtest-form" name="test_password" placeholder="Проверочный пароль (необяз.)" style="min-width:180px">
+<button class="btn gray" form="adtest-form" type="submit">🔌 Проверить связь</button>
+</div>
+<p class="note">Сначала нажмите «Сохранить настройки», чтобы проверка шла с новыми значениями. Без проверочного логина проверка идёт анонимно — многие домены это запрещают, тогда укажите логин и пароль любого доменного пользователя.</p>
+</div>
+
 <div class="info" style="margin-top:10px">
 <h3>Как это работает</h3>
 <ul>
-<li><b>Graceful-degradation:</b> если AD недоступен (нет сети, сертификат, сервер), а галочка «Разрешить локальные пароли» стоит — пользователи с локальными паролями входят как раньше. Никто не оказывается заблокированным из-за проблем с AD.</li>
-<li><b>Авто-создание (provisioning):</b> если человек впервые входит доменной учёткой и AD его подтверждает — программа создаёт локальную запись с выбранной ролью. Имя и email подтягиваются из AD автоматически. Роль потом можно поменять в разделе «Пользователи».</li>
-<li><b>Авто-перевод на AD:</b> если у существующего локального пользователя совпал пароль с AD-паролем, его учётка автоматически помечается как доменная (источник входа меняется).</li>
-<li><b>Шаблон входа:</b> если у вас домен вида <code>COMPANY</code>, пишите <code>COMPANY\%s</code>. Если почтовый UPN — <code>%s@company.local</code>. Если не знаете — оставьте пустым, будет поиск по Base DN.</li>
-<li><b>Смена пароля:</b> доменные пользователи меняют пароль в самом AD (Ctrl+Alt+Del), здесь это недоступно.</li>
+<li><b>Graceful-degradation:</b> если AD недоступен, а галочка fallback стоит — локальные пароли работают как раньше.</li>
+<li><b>Авто-создание:</b> первый вход доменной учёткой создаёт локальную запись с ролью по умолчанию; имя и email подтягиваются из AD.</li>
+<li><b>Авто-перевод:</b> если локальный пароль совпал с AD-паролем, учётка помечается как доменная.</li>
+<li><b>Смена пароля:</b> доменные пользователи меняют пароль в AD (Ctrl+Alt+Del), не здесь.</li>
 </ul>
 </div>
 </fieldset>
@@ -112,6 +115,8 @@
 <button class="btn" type="submit">Сохранить настройки</button>
 </div>
 </form>
+
+<form id="adtest-form" method="post" action="{{ url_for('settings.ad_test') }}"></form>
 
 <h3 style="margin:18px 0 10px;color:#667eea">Журнал изменений настроек</h3>
 <table>

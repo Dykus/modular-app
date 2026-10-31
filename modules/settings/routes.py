@@ -1,6 +1,7 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash
+from flask_login import current_user
 from core.app import db
-from core.auth import perm
+from core.auth import perm, user_has_perm
 import json
 from core.registry import AVAILABLE_MODULES
 from core import ad_provider
@@ -58,13 +59,7 @@ def save():
     lm = (request.form.get("lock_minutes") or "15").strip()
     set_setting("lock_threshold", lt.lstrip("-") or "5", who)
     set_setting("lock_minutes", lm.lstrip("-") or "15", who)
-
-    # AD-nastroyki (trebuyut prava auth.security)
-    # Esli u tekushchego polzovatelya net auth.security - AD-ne-nastroyki ignorim
-    from core.auth import user_has_perm
-    from flask_login import current_user
-    can_ad = user_has_perm(current_user, "auth.security")
-    if can_ad:
+    if user_has_perm(current_user, "auth.security"):
         set_setting("ad_enabled", "1" if request.form.get("ad_enabled") else "0", who)
         set_setting("ad_host", (request.form.get("ad_host") or "").strip(), who)
         set_setting("ad_port", (request.form.get("ad_port") or "389").strip(), who)
@@ -74,9 +69,22 @@ def save():
         set_setting("ad_base_dn", (request.form.get("ad_base_dn") or "").strip(), who)
         set_setting("ad_bind_template", (request.form.get("ad_bind_template") or "").strip(), who)
         set_setting("ad_search_filter", (request.form.get("ad_search_filter") or "(sAMAccountName=%s)").strip(), who)
-        def_role = (request.form.get("ad_default_role") or "staff").strip()
-        set_setting("ad_default_role", def_role, who)
+        set_setting("ad_default_role", (request.form.get("ad_default_role") or "staff").strip(), who)
         set_setting("ad_allow_fallback_local", "1" if request.form.get("ad_allow_fallback") else "0", who)
+    flash("Настройки сохранены.")
+    return redirect(url_for("settings.index"))
 
-    flash("Настройки сохранены." + ("" if can_ad else " Раздел AD не сохранён: нет права auth.security."))
+@settings_bp.route("/ad-test", methods=["POST"])
+@perm("auth.security")
+def ad_test():
+    """Poshagovaya proverka svyazi s AD. Proverochnye dannye NE sohranyayutsya."""
+    tu = (request.form.get("test_user") or "").strip()
+    tp = request.form.get("test_password") or ""
+    steps = ad_provider.test_connection(tu, tp)
+    for ok, text in steps:
+        flash(("✅ " if ok else "❌ ") + text)
+    if steps and all(ok for ok, _ in steps):
+        flash("🎉 Все шаги пройдены: AD доступен и настроен верно. Можно включать галочку «Включить вход через Active Directory».")
+    else:
+        flash("Проверка остановилась на первом ❌ — исправьте указанный шаг и повторите.")
     return redirect(url_for("settings.index"))

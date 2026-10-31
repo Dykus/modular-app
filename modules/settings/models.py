@@ -17,7 +17,7 @@ class SettingLog(db.Model):
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
 
 def get_setting(key, default=""):
-    row = Setting.query.get(key)
+    row = db.session.get(Setting, key)
     if row is None or row.value == "":
         return default
     return row.value
@@ -29,7 +29,7 @@ def get_bool(key, default=False):
     return str(v).lower() in ("1", "true", "yes", "on")
 
 def set_setting(key, value, who="sistema"):
-    row = Setting.query.get(key)
+    row = db.session.get(Setting, key)
     old = row.value if row else ""
     if not isinstance(value, str):
         value = json.dumps(value, ensure_ascii=False)
