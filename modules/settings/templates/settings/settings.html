@@ -3,7 +3,7 @@
 {% block content %}
 <div class="welcome">
 <h2>&#9881; Настройки приложения</h2>
-<p>Обслуживание: название, тема, включение модулей и журнал изменений.</p>
+<p>Обслуживание: название, тема, доступ, включение модулей и журнал изменений.</p>
 </div>
 
 <form method="post" action="{{ url_for('settings.save') }}" class="form-row" style="flex-direction:column;align-items:stretch;gap:12px">
@@ -23,6 +23,21 @@
 <input type="checkbox" name="require_comment" value="1" {{ 'checked' if require_comment }}>
 Требовать комментарий при «Не нужно» (Задачи отдела)</label>
 </div>
+
+<fieldset style="border:1px solid #d6dbe4;border-radius:8px;padding:12px">
+<legend style="font-weight:600;color:#5a6b85;font-size:13px">Доступ и безопасность</legend>
+<label style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
+<input type="checkbox" name="auth_enabled" value="1" {{ 'checked' if auth_enabled }}>
+Включить авторизацию (safety-switch)</label>
+<div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center">
+<label>Неудачных попыток до блокировки
+<input type="number" name="lock_threshold" value="{{ lock_threshold }}" min="1" style="width:80px;margin-left:6px"></label>
+<label>Блокировка на, минут
+<input type="number" name="lock_minutes" value="{{ lock_minutes }}" min="1" style="width:80px;margin-left:6px"></label>
+</div>
+<p class="note" style="margin-top:8px">Пока выключено — система открыта по сети (как раньше). Включай только после того, как проверил вход под <code>admin</code>: если что-то пойдёт не так, выключишь этот флажок и разберёшься спокойно. Роли и права появятся на следующем шаге.</p>
+</fieldset>
+
 <fieldset style="border:1px solid #d6dbe4;border-radius:8px;padding:12px">
 <legend style="font-weight:600;color:#5a6b85;font-size:13px">Доступные модули (галочка = включён)</legend>
 {% for m in modules %}
@@ -32,6 +47,7 @@
 {% endfor %}
 <p class="note" style="margin-top:8px">Системный модуль «Настройки» выключить нельзя. Снимающийся модуль исчезнет из меню и перестанет отвечать на свой адрес — после перезапуска run.py.</p>
 </fieldset>
+
 <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
 <input type="text" name="who" placeholder="Ваше имя (кто меняет)" required style="min-width:200px">
 <button class="btn" type="submit">Сохранить настройки</button>
@@ -41,7 +57,7 @@
 <div class="info" style="margin-top:18px">
 <h3>Как применяется</h3>
 <ul>
-<li>Название, тема, требования — <b>сразу</b> (читаются при каждом открытии страницы).</li>
+<li>Название, тема, доступ, требования — <b>сразу</b> (читаются при каждом открытии страницы).</li>
 <li>Включение/выключение модулей — <b>после перезапуска</b> <code>python run.py</code>.</li>
 <li>Каждое изменение записывается в журнал ниже.</li>
 </ul>

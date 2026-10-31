@@ -3,8 +3,13 @@ body{font-family:'Segoe UI',Tahoma,sans-serif;background:#eef1f6;color:#2c3e50;l
 .container{max-width:1180px;margin:0 auto;padding:18px}
 header{background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;padding:22px 26px;border-radius:12px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px}
 header h1{font-size:20px}
-nav a{color:#fff;text-decoration:none;margin-right:18px;padding:8px 14px;border-radius:6px;font-weight:600;transition:.15s}
+nav{display:flex;align-items:center;flex-wrap:wrap;gap:4px}
+nav a{color:#fff;text-decoration:none;margin-right:14px;padding:8px 12px;border-radius:6px;font-weight:600;transition:.15s}
 nav a:hover{background:rgba(255,255,255,.2)}
+.userbox{display:flex;align-items:center;gap:8px;margin-left:8px;padding-left:12px;border-left:1px solid rgba(255,255,255,.3)}
+.userbox .uname{font-weight:700}
+.userbox .ulogout{background:rgba(255,255,255,.18);padding:6px 12px}
+.userbox .ulogin{background:#fff;color:#667eea;padding:6px 14px;border-radius:6px}
 main{background:#fff;padding:24px;border-radius:12px;box-shadow:0 2px 6px rgba(0,0,0,.06)}
 .flash{background:#fff3cd;border-left:4px solid #f39c12;padding:12px 16px;border-radius:8px;margin-bottom:14px;font-size:14px}
 .welcome{margin-bottom:18px}
@@ -15,7 +20,7 @@ main{background:#fff;padding:24px;border-radius:12px;box-shadow:0 2px 6px rgba(0
 .card h3{color:#5a6b85;margin-bottom:8px;font-size:13px;text-transform:uppercase;letter-spacing:.3px}
 .card p{font-size:26px;font-weight:700;color:#2c3e50}
 .form-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;padding:14px;background:#f8f9fc;border-radius:9px;border:1px dashed #cdd4e0}
-.form-row input,.form-row select{padding:8px 10px;border:1px solid #d6dbe4;border-radius:6px;font-size:14px}
+.form-row input,.form-row select,.form-row textarea{padding:8px 10px;border:1px solid #d6dbe4;border-radius:6px;font-size:14px;font-family:inherit}
 .toolbar{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center}
 .toolbar input[type=text]{padding:8px 12px;border:1px solid #d6dbe4;border-radius:7px;font-size:14px;min-width:200px}
 .btn{background:#667eea;color:#fff;border:none;padding:9px 16px;border-radius:7px;cursor:pointer;font-size:14px;font-weight:600;transition:.15s;text-decoration:none;display:inline-block}
@@ -34,3 +39,5 @@ tr:hover td{background:#fafbfe}
 .empty{text-align:center;color:#9aa3b2;padding:28px;font-style:italic}
 .note{font-size:12px;color:#8a93a6;margin-top:12px}
 footer{text-align:center;color:#8a93a6;font-size:12px;padding:18px}
+.theme-btn{background:rgba(255,255,255,.2);color:#fff;border:none;border-radius:6px;padding:6px 10px;cursor:pointer;font-size:16px}
+.theme-btn:hover{background:rgba(255,255,255,.32)}

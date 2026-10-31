@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash
-from core.app import db
+from core.app import db, create_app
 import json
 from core.registry import AVAILABLE_MODULES
 from modules.settings.models import Setting, SettingLog, get_setting, get_bool, set_setting
@@ -25,6 +25,9 @@ def index():
                            app_footer=get_setting("app_footer", ""),
                            theme=get_setting("theme", "light"),
                            require_comment=get_bool("feedback_require_comment_on_reject", False),
+                           auth_enabled=get_bool("auth_enabled", False),
+                           lock_threshold=get_setting("lock_threshold", "5"),
+                           lock_minutes=get_setting("lock_minutes", "15"),
                            logs=logs)
 
 @settings_bp.route("/save", methods=["POST"])
@@ -36,5 +39,10 @@ def save():
     mods = request.form.getlist("modules")
     set_setting("enabled_modules", json.dumps(mods, ensure_ascii=False), who)
     set_setting("feedback_require_comment_on_reject", "1" if request.form.get("require_comment") else "0", who)
-    flash("Настройки сохранены. Название, тема и требования применяются сразу. Включение/выключение модулей — после перезапуска run.py.")
+    set_setting("auth_enabled", "1" if request.form.get("auth_enabled") else "0", who)
+    lt = (request.form.get("lock_threshold") or "5").strip()
+    lm = (request.form.get("lock_minutes") or "15").strip()
+    set_setting("lock_threshold", lt.lstrip("-") or "5", who)
+    set_setting("lock_minutes", lm.lstrip("-") or "15", who)
+    flash("Настройки сохранены. Название, тема, требования и авторизация применяются сразу. Включение/выключение модулей — после перезапуска run.py.")
     return redirect(url_for("settings.index"))
