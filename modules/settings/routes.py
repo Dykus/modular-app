@@ -7,6 +7,7 @@ from core.registry import AVAILABLE_MODULES
 from core import ad_provider
 from core.models import Role
 from modules.settings.models import Setting, SettingLog, get_setting, get_bool, set_setting
+from modules.settings.labels import setting_label, format_setting_value
 
 settings_bp = Blueprint("settings", __name__, url_prefix="/settings", template_folder="templates")
 
@@ -42,7 +43,9 @@ def index():
         ad_allow_fallback=get_bool("ad_allow_fallback_local", True),
         ad_lib_ok=ad_provider.ldap3_available(),
         roles=roles,
-        logs=logs)
+        logs=logs,
+        label=setting_label,
+        fmt=format_setting_value)
 
 @settings_bp.route("/save", methods=["POST"])
 @perm("settings.manage")

@@ -120,15 +120,15 @@
 
 <h3 style="margin:18px 0 10px;color:#667eea">Журнал изменений настроек</h3>
 <table>
-<thead><tr><th>Когда</th><th>Кто</th><th>Ключ</th><th>Было</th><th>Стало</th></tr></thead>
+<thead><tr><th>Когда</th><th>Кто</th><th>Что изменили</th><th>Было</th><th>Стало</th></tr></thead>
 <tbody>
 {% for l in logs %}
 <tr>
 <td style="white-space:nowrap">{{ l.timestamp.strftime('%d.%m.%Y %H:%M') }}</td>
 <td><b>{{ l.who or '—' }}</b></td>
-<td><code>{{ l.key }}</code></td>
-<td style="max-width:200px;word-break:break-all">{{ l.old_value or '(пусто)' }}</td>
-<td style="max-width:200px;word-break:break-all">{{ l.new_value or '(пусто)' }}</td>
+<td><b>{{ label(l.key) }}</b><div class="note" style="margin-top:2px">код: <code>{{ l.key }}</code></div></td>
+<td style="max-width:260px;word-break:break-all">{{ fmt(l.key, l.old_value) }}</td>
+<td style="max-width:260px;word-break:break-all">{{ fmt(l.key, l.new_value) }}</td>
 </tr>
 {% else %}
 <tr><td colspan="5" class="empty">Журнал пуст.</td></tr>
