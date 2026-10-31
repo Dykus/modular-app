@@ -3,7 +3,7 @@
 {% block content %}
 <div class="welcome">
 <h2>Журнал входов</h2>
-<p>Кто и когда входил в систему, а также неудачные попытки (неверный пароль, закрытый доступ, блокировка). Это ваш инструмент контроля: видно подозрительные серии попыток.</p>
+<p>Кто и когда входил в систему, а также неудачные попытки. Колонка «Источник» показывает, где проверялся пароль: у нас (local) или в Active Directory (ad).</p>
 </div>
 <div class="toolbar">
 <a href="{{ url_for('auth.users_list') }}" class="btn gray">← К пользователям</a>
@@ -13,15 +13,15 @@
 </form>
 </div>
 <table>
-<thead><tr><th>Когда</th><th>Логин</th><th>Результат</th><th>IP</th><th>Источник</th><th>Причина</th></tr></thead>
+<thead><tr><th>Когда</th><th>Логин</th><th>Результат</th><th>Источник</th><th>IP</th><th>Причина</th></tr></thead>
 <tbody>
 {% for l in logs %}
 <tr>
 <td style="white-space:nowrap">{{ l.timestamp.strftime('%d.%m.%Y %H:%M') }}</td>
 <td><b>{{ l.username or '—' }}</b></td>
 <td>{% if l.success %}<span class="badge b-green">успех</span>{% else %}<span class="badge b-red">отказ</span>{% endif %}</td>
+<td>{% if l.provider == 'ad' %}<span class="badge b-purple">🌐 AD</span>{% else %}локальный{% endif %}</td>
 <td><code>{{ l.ip or '—' }}</code></td>
-<td>{{ l.provider }}</td>
 <td>{{ l.reason or ('вход' if l.success else '') }}</td>
 </tr>
 {% else %}

@@ -3,16 +3,18 @@
 {% block content %}
 <div class="welcome">
 <h2>&#9881; Настройки приложения</h2>
-<p>Обслуживание: название, тема, доступ, включение модулей и журнал изменений.</p>
+<p>Название, тема, доступ, Active Directory, включение модулей и журнал изменений.</p>
 </div>
 
 <form method="post" action="{{ url_for('settings.save') }}" class="form-row" style="flex-direction:column;align-items:stretch;gap:12px">
+
 <div style="display:flex;gap:10px;flex-wrap:wrap">
 <label style="flex:1;min-width:240px">Название приложения (в шапке)
 <input type="text" name="app_title" value="{{ app_title }}" style="width:100%;margin-top:4px"></label>
 <label style="flex:1;min-width:240px">Подпись в футере
 <input type="text" name="app_footer" value="{{ app_footer }}" placeholder="(пусто = стандартная)" style="width:100%;margin-top:4px"></label>
 </div>
+
 <div style="display:flex;gap:18px;flex-wrap:wrap;align-items:center">
 <label>Тема по умолчанию
 <select name="theme">
@@ -35,7 +37,64 @@
 <label>Блокировка на, минут
 <input type="number" name="lock_minutes" value="{{ lock_minutes }}" min="1" style="width:80px;margin-left:6px"></label>
 </div>
-<p class="note" style="margin-top:8px">Пока выключено — система открыта по сети (как раньше). Включай только после того, как проверил вход под <code>admin</code>: если что-то пойдёт не так, выключишь этот флажок и разберёшься спокойно. Роли и права появятся на следующем шаге.</p>
+<p class="note" style="margin-top:8px">Пока выключено — система открыта по сети. Включай только после того, как проверил вход под <code>admin</code>.</p>
+</fieldset>
+
+<fieldset style="border:1px solid #d6dbe4;border-radius:8px;padding:12px">
+<legend style="font-weight:600;color:#5a6b85;font-size:13px">🌐 Active Directory</legend>
+{% if not ad_lib_ok %}
+<div class="flash" style="margin:0 0 10px">Библиотека <code>ldap3</code> не установлена. Выполните <code>python -m pip install ldap3</code> на сервере и перезапустите программу.</div>
+{% endif %}
+{% if not can('auth.security') %}
+<p class="note" style="margin:0 0 10px;color:#e74c3c">У вашей роли нет права <code>auth.security</code> — раздел только для чтения. Изменить настройки AD может администратор или руководитель.</p>
+{% endif %}
+<label style="display:flex;align-items:center;gap:6px;margin-bottom:10px">
+<input type="checkbox" name="ad_enabled" value="1" {{ 'checked' if ad_enabled }} {{ 'disabled' if not can('auth.security') }}>
+Включить вход через Active Directory</label>
+
+<div style="display:flex;gap:10px;flex-wrap:wrap">
+<label style="flex:2;min-width:240px">Хост контроллера домена
+<input type="text" name="ad_host" value="{{ ad_host }}" placeholder="dc.company.local или 192.168.1.10" {{ 'disabled' if not can('auth.security') }} style="width:100%;margin-top:4px"></label>
+<label style="flex:1;min-width:120px">Порт
+<input type="number" name="ad_port" value="{{ ad_port }}" min="1" max="65535" {{ 'disabled' if not can('auth.security') }} style="width:100%;margin-top:4px"></label>
+<label style="flex:1;min-width:160px">Защита соединения
+<select name="ad_security" {{ 'disabled' if not can('auth.security') }} style="width:100%;margin-top:4px">
+<option value="none"     {{ 'selected' if ad_security=='none' }}>Без TLS (389)</option>
+<option value="starttls" {{ 'selected' if ad_security=='starttls' }}>StartTLS (389)</option>
+<option value="ldaps"    {{ 'selected' if ad_security=='ldaps' }}>LDAPS/SSL (636)</option>
+</select></label>
+</div>
+
+<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:6px">
+<label style="flex:1;min-width:260px">Base DN (корень поиска пользователей)
+<input type="text" name="ad_base_dn" value="{{ ad_base_dn }}" placeholder="DC=company,DC=local" {{ 'disabled' if not can('auth.security') }} style="width:100%;margin-top:4px"></label>
+<label style="flex:1;min-width:260px">Шаблон входа (один из двух способов, можно оставить пустым)
+<input type="text" name="ad_bind_template" value="{{ ad_bind_template }}" placeholder="COMPANY\%s  или  %s@company.local" {{ 'disabled' if not can('auth.security') }} style="width:100%;margin-top:4px"></label>
+</div>
+
+<label style="margin-top:6px">Фильтр поиска пользователя (используется, если шаблон входа пустой)
+<input type="text" name="ad_search_filter" value="{{ ad_search_filter }}" {{ 'disabled' if not can('auth.security') }} style="width:100%;margin-top:4px"></label>
+
+<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:6px">
+<label style="flex:1;min-width:220px">Роль для авто-создаваемых из AD
+<select name="ad_default_role" {{ 'disabled' if not can('auth.security') }} style="width:100%;margin-top:4px">
+{% for r in roles %}<option value="{{ r.name }}" {{ 'selected' if ad_default_role==r.name }}>{{ r.name }}{% if r.description %} — {{ r.description }}{% endif %}</option>{% endfor %}
+</select></label>
+<label style="flex:1;min-width:260px;display:flex;align-items:center;gap:6px">
+<input type="checkbox" name="ad_allow_fallback" value="1" {{ 'checked' if ad_allow_fallback }} {{ 'disabled' if not can('auth.security') }}>
+Разрешить локальные пароли, если AD недоступен</label>
+</div>
+
+<div class="info" style="margin-top:10px">
+<h3>Как это работает</h3>
+<ul>
+<li><b>Graceful-degradation:</b> если AD недоступен (нет сети, сертификат, сервер), а галочка «Разрешить локальные пароли» стоит — пользователи с локальными паролями входят как раньше. Никто не оказывается заблокированным из-за проблем с AD.</li>
+<li><b>Авто-создание (provisioning):</b> если человек впервые входит доменной учёткой и AD его подтверждает — программа создаёт локальную запись с выбранной ролью. Имя и email подтягиваются из AD автоматически. Роль потом можно поменять в разделе «Пользователи».</li>
+<li><b>Авто-перевод на AD:</b> если у существующего локального пользователя совпал пароль с AD-паролем, его учётка автоматически помечается как доменная (источник входа меняется).</li>
+<li><b>Шаблон входа:</b> если у вас домен вида <code>COMPANY</code>, пишите <code>COMPANY\%s</code>. Если почтовый UPN — <code>%s@company.local</code>. Если не знаете — оставьте пустым, будет поиск по Base DN.</li>
+<li><b>Смена пароля:</b> доменные пользователи меняют пароль в самом AD (Ctrl+Alt+Del), здесь это недоступно.</li>
+</ul>
+</div>
 </fieldset>
 
 <fieldset style="border:1px solid #d6dbe4;border-radius:8px;padding:12px">
@@ -45,7 +104,7 @@
 <input type="checkbox" name="modules" value="{{ m.key }}" {{ 'checked' if m.key in enabled }}>
 <b>{{ m.name }}</b> <span style="color:#8a93a6">(/{{ m.key }})</span></label>
 {% endfor %}
-<p class="note" style="margin-top:8px">Системный модуль «Настройки» выключить нельзя. Снимающийся модуль исчезнет из меню и перестанет отвечать на свой адрес — после перезапуска run.py.</p>
+<p class="note" style="margin-top:8px">Системный модуль «Настройки» выключить нельзя. Включение/выключение модуля — после перезапуска <code>python run.py</code>.</p>
 </fieldset>
 
 <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
@@ -53,15 +112,6 @@
 <button class="btn" type="submit">Сохранить настройки</button>
 </div>
 </form>
-
-<div class="info" style="margin-top:18px">
-<h3>Как применяется</h3>
-<ul>
-<li>Название, тема, доступ, требования — <b>сразу</b> (читаются при каждом открытии страницы).</li>
-<li>Включение/выключение модулей — <b>после перезапуска</b> <code>python run.py</code>.</li>
-<li>Каждое изменение записывается в журнал ниже.</li>
-</ul>
-</div>
 
 <h3 style="margin:18px 0 10px;color:#667eea">Журнал изменений настроек</h3>
 <table>
@@ -76,7 +126,7 @@
 <td style="max-width:200px;word-break:break-all">{{ l.new_value or '(пусто)' }}</td>
 </tr>
 {% else %}
-<tr><td colspan="5" class="empty">Журнал пуст. Сохрани настройки — и здесь появятся записи.</td></tr>
+<tr><td colspan="5" class="empty">Журнал пуст.</td></tr>
 {% endfor %}
 </tbody>
 </table>

@@ -2,12 +2,13 @@
 {% block title %}Вход{% endblock %}
 {% block content %}
 <div class="welcome"><h2>Вход в систему</h2>
-<p>{% if auth_enabled %}Введите логин и пароль.{% else %}Авторизация сейчас выключена (safety-switch в Настройках). Эта страница доступна для проверки входа.{% endif %}</p></div>
+<p>{% if auth_enabled %}Введите логин и пароль.{% else %}Авторизация сейчас выключена (safety-switch в Настройках). Эта страница доступна для проверки входа.{% endif %}
+{% if ad_on %}<br><span class="note">🌐 Включён вход через Active Directory — доменные пользователи входят своими учётками Windows.{% endif %}</span></p></div>
 <form method="post" action="{{ url_for('auth.do_login') }}" class="form-row" style="flex-direction:column;align-items:stretch;gap:10px;max-width:380px">
 <label>Логин<input type="text" name="username" required autofocus style="width:100%;margin-top:4px"></label>
 <label>Пароль<input type="password" name="password" required style="width:100%;margin-top:4px"></label>
 <label style="display:flex;align-items:center;gap:6px"><input type="checkbox" name="remember" value="1"> запомнить меня</label>
 <button class="btn" type="submit">Войти</button>
-<p class="note">Первый вход: логин <code>admin</code>, пароль <code>admin123</code> — система попросит сменить его.</p>
+<p class="note">Первый вход: <code>admin</code> / <code>admin123</code> — система попросит сменить пароль.</p>
 </form>
 {% endblock %}

@@ -3,16 +3,21 @@
 {% block content %}
 <div class="welcome"><h2>Мой профиль</h2></div>
 <div class="card" style="max-width:520px">
-<table>
-<tbody>
+<table><tbody>
 <tr><td style="width:40%;color:#8a93a6">Логин</td><td><b>{{ current_user.username }}</b></td></tr>
 <tr><td style="color:#8a93a6">Имя</td><td>{{ current_user.full_name or '—' }}</td></tr>
 <tr><td style="color:#8a93a6">Email</td><td>{{ current_user.email or '—' }}</td></tr>
 <tr><td style="color:#8a93a6">Роль</td><td>{{ current_user.role_rel.name if current_user.role_rel else '—' }}{% if current_user.is_superuser %} <span class="badge b-green">superuser</span>{% endif %}</td></tr>
-<tr><td style="color:#8a93a6">Источник входа</td><td>{{ 'локальный' if current_user.auth_source=='local' else current_user.auth_source }}</td></tr>
+<tr><td style="color:#8a93a6">Источник входа</td>
+<td>{% if current_user.auth_source == 'ad' %}<span class="badge b-purple">🌐 Active Directory</span>{% else %}локальный{% endif %}</td></tr>
 <tr><td style="color:#8a93a6">Последний вход</td><td>{{ current_user.last_login.strftime('%d.%m.%Y %H:%M') if current_user.last_login else '—' }}</td></tr>
-</tbody>
-</table>
-<p style="margin-top:14px"><a href="{{ url_for('auth.change_password') }}" class="btn">Сменить пароль</a></p>
+</tbody></table>
+<p style="margin-top:14px">
+{% if current_user.auth_source == 'ad' %}
+<span class="note">Ваш пароль управляется в Active Directory. Для смены используйте Ctrl+Alt+Del → «Сменить пароль».</span>
+{% else %}
+<a href="{{ url_for('auth.change_password') }}" class="btn">Сменить пароль</a>
+{% endif %}
+</p>
 </div>
 {% endblock %}
