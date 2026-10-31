@@ -1,34 +1,31 @@
 """Reestr prav: sbiraet prava iz vseh moduley v odin obschiy spisok.
 
-Pravo - eta metka vida "modul.deystvie", naprimer "feedback.create"
-(umet sozdavat' zadachi) ili "auth.manage_users" (umet upravlyat' lyud'mi).
-Sam po sebe pravo nichego ne delayot - eta prosto teGL na dveri. Rol' -
-eto spisok takih teGLov, kotorye cheloveku razresheny.
-
-Kazhdy modul peredachaet svoi prava v fayle modules/<imya>/perms.py
-(spisok PERMISSIONS). My prohodim po vsem modulam iz registry.py,
-chitaem ih PERMISSIONS i skladivaem v obshchie slovari:
-  ALL_PERMS    = {kod_prava: (grappa_chelovechitayemaya, opisanie)}
-  PERM_GROUPS  = [spisok grupp v poryadke dla UI]
-  MODULE_PERMS = {kluch_modulea: [spiski ego prav]}
+Pravo - metka vida "modul.deystvie". Kazhdy modul ob'yavlyaet svoi prava
+v fayle modules/<imya>/perms.py (spisok PERMISSIONS). Funkciya collect()
+prohodit po vsem modulam iz registry.py i skladivaet vse v slovari:
+  ALL_PERMS    = {kod: (gruppa, chelovecheskoe opisanie)}
+  PERM_GROUPS  = [gruppy v poryadke dlya UI]
+  MODULE_PERMS = {kluch modulya: [kody ego prav]}
 """
 import importlib
 
-# eti tri slovara napolyayotsya pri zapuske (funkciy collect())
 ALL_PERMS = {}
 PERM_GROUPS = []
 MODULE_PERMS = {}
 
-# Sistemnye prava dostupa - oni ne prinadlezhat nikakomu modulyu-vkladke,
-# no bez nih nelzya upravlyat' lyud'mi i rol'yami. Derzhim ih zdes'.
+# Sistemnye prava dostupa: ne prinadlezhat modulym-vkladkam, no bez nih
+# nelzya upravlyat' lyud'mi, rolyami i bezopasnostyu.
 AUTH_PERMS = [
-    ("auth.manage_users", "Доступ", "Создавать, редактировать и блокировать пользователей"),
-    ("auth.manage_roles", "Доступ", "Создавать роли и назначать им права (галочки)"),
-    ("auth.security",     "Доступ", "Менять безопасность: включать/выключать авторизацию, пороги блокировки"),
+    ("auth.manage_users", "Доступ",
+     "Создавать, редактировать и блокировать пользователей"),
+    ("auth.manage_roles", "Доступ",
+     "Создавать роли и назначать им права (галочки)"),
+    ("auth.security", "Доступ",
+     "Менять безопасность: включать/выключать авторизацию, пороги блокировки"),
 ]
 
 def collect():
-    """Sobiraet vse prava. Vyzivaetsya ODN raz pri zapuske iz core/app.py."""
+    """Sobiraet vse prava. Vyzivaetsya odin raz pri zapuske iz core/app.py."""
     global ALL_PERMS, PERM_GROUPS, MODULE_PERMS
     ALL_PERMS = {}
     PERM_GROUPS = []
@@ -38,12 +35,16 @@ def collect():
     for m in AVAILABLE_MODULES:
         key = m["key"]
         codes = []
-        # probuem importnut' modules/<key>/perms.py; esli fayla net - propuskaem
         try:
             mod = importlib.import_module("modules.%s.perms" % key)
         except ModuleNotFoundError:
             mod = None
-        for code, group, desc in getattr(mod, "PERMISSIONS", []) if mod else []:
+        except Exception as e:
+            # Zashchita: bitoy perms.py odnogo modulya ne valit vse prilozhenie.
+            print("PREDUPREZHDENIE: ne smog prochitat' modules/%s/perms.py: %s" % (key, e))
+            print("  Modul poluchit pustoi nabor prav, poka fayl ne pochinyat.")
+            mod = None
+        for code, group, desc in (getattr(mod, "PERMISSIONS", []) if mod else []):
             if code not in ALL_PERMS:
                 ALL_PERMS[code] = (group, desc)
             if group not in PERM_GROUPS:
@@ -51,7 +52,6 @@ def collect():
             codes.append(code)
         MODULE_PERMS[key] = codes
 
-    # dobavlyaem sistemnye prava dostupa v konez
     for code, group, desc in AUTH_PERMS:
         if code not in ALL_PERMS:
             ALL_PERMS[code] = (group, desc)

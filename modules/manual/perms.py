@@ -1,4 +1,4 @@
-"""Prava modulya "Rukovodstvo"."''
+"""Prava modulya Rukovodstvo (rukovodstvo po ekspluatacii i pechat)."""
 
 PERMISSIONS = [
     ("manual.view", "Руководство",
