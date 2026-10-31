@@ -5,7 +5,7 @@ import json
 
 login_manager = LoginManager()
 login_manager.login_view = "auth.login"
-login_manager.login_message = "Voydite v sistemu, chtoby prodlomit."
+login_manager.login_message = "Войдите в систему, чтобы продолжить."
 login_manager.session_protection = "strong"
 
 @login_manager.user_loader

@@ -29,14 +29,14 @@ def do_login():
     password = request.form.get("password") or ""
     user = User.query.filter(db.func.lower(User.username) == username.lower()).first()
     if not user:
-        _log(username, None, False, "net takogo polzovatelya")
-        flash("Nevershnyy login ili parol."); return redirect(url_for("auth.login"))
+        _log(username, None, False, "нет такого пользователя")
+        flash("Неверный логин или пароль."); return redirect(url_for("auth.login"))
     if not user.is_active:
-        _log(username, user.id, False, "zakryt")
-        flash("Polzovatel zakryt. Obratites k administratoru."); return redirect(url_for("auth.login"))
+        _log(username, user.id, False, "закрыт")
+        flash("Пользователь закрыт. Обратитесь к администратору."); return redirect(url_for("auth.login"))
     if user.locked_until and user.locked_until > datetime.utcnow():
-        _log(username, user.id, False, "zablokirovan")
-        flash("Vkhod vremenno zablokirovan posle neskolkih neudachnyh popytok."); return redirect(url_for("auth.login"))
+        _log(username, user.id, False, "заблокирован")
+        flash("Вход временно заблокирован после нескольких неудачных попыток."); return redirect(url_for("auth.login"))
     if not verify_password(user, password):
         user.failed_attempts = (user.failed_attempts or 0) + 1
         thr = get_int("lock_threshold", 5)
@@ -45,8 +45,8 @@ def do_login():
             user.locked_until = datetime.utcnow() + timedelta(minutes=mins)
             user.failed_attempts = 0
         db.session.commit()
-        _log(username, user.id, False, "nevernyy parol")
-        flash("Nevershnyy login ili parol."); return redirect(url_for("auth.login"))
+        _log(username, user.id, False, "неверный пароль")
+        flash("Неверный логин или пароль."); return redirect(url_for("auth.login"))
     user.failed_attempts = 0; user.locked_until = None; user.last_login = datetime.utcnow()
     db.session.commit()
     login_user(user, remember=bool(request.form.get("remember")))
@@ -57,9 +57,9 @@ def do_login():
 @auth_bp.route("/logout")
 @login_required
 def logout():
-    _log(current_user.username, current_user.id, True, "vykhod")
+    _log(current_user.username, current_user.id, True, "выход")
     logout_user()
-    flash("Vy vyshli iz sistemy.")
+    flash("Вы вышли из системы.")
     return redirect(url_for("auth.login"))
 
 @auth_bp.route("/profile")
@@ -78,13 +78,13 @@ def do_change_password():
     new = request.form.get("new") or ""
     rep = request.form.get("repeat") or ""
     if not verify_password(current_user, old):
-        flash("Staryy parol neveren."); return redirect(url_for("auth.change_password"))
+        flash("Старый пароль неверен."); return redirect(url_for("auth.change_password"))
     if len(new) < 4:
-        flash("Novyy parol slishkom korotkiy (min. 4)."); return redirect(url_for("auth.change_password"))
+        flash("Новый пароль слишком короткий (мин. 4)."); return redirect(url_for("auth.change_password"))
     if new != rep:
-        flash("Paroli ne sovpadayut."); return redirect(url_for("auth.change_password"))
+        flash("Пароли не совпадают."); return redirect(url_for("auth.change_password"))
     current_user.password_hash = hash_password(new)
     current_user.must_change_password = False
     db.session.commit()
-    flash("Parol izmenen.")
+    flash("Пароль изменён.")
     return redirect(url_for("auth.profile"))
