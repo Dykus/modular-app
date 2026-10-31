@@ -1,22 +1,37 @@
 {% extends "base.html" %}
-{% block title %}Хотелки{% endblock %}
+{% block title %}Задачи отдела{% endblock %}
 {% block content %}
 <div class="welcome">
-<h2>Хотелки и задачи отдела</h2>
-<p>Сотрудники пишут, что нужно. Руководитель ведёт статус: что сделано, что в планах, что не нужно.</p>
+<h2>Задачи и хотелки отдела</h2>
+<p>Сотрудники пишут, что нужно, и указывают адресата. Руководитель ведёт статус. Приватные записи (🔒) видны только автору, адресату и администратору.</p>
 </div>
+
+<datalist id="people">
+{% for u in people %}
+<option value="{{ u.full_name or u.username }}">{{ u.username }}</option>
+{% endfor %}
+</datalist>
+
+<form method="post" action="{{ url_for('feedback.add') }}" class="form-row" style="flex-direction:column;align-items:stretch;gap:8px">
+<div style="display:flex;gap:8px;flex-wrap:wrap">
+<input type="text" name="author" id="fb-author" list="people" value="{{ me }}" placeholder="Кто (выберите или впишите)" required style="min-width:180px">
+<input type="text" name="addressee" list="people" placeholder="Кому (выберите или впишите)" style="min-width:180px">
+</div>
+<input type="text" name="text" placeholder="Что нужно? Опиши хотелку" required style="width:100%">
+<label style="display:flex;align-items:center;gap:8px">
+<input type="checkbox" name="is_private" value="1">
+приватно: видеть будут только автор, адресат и администратор</label>
+<div><button class="btn" type="submit">+ Отправить хотелку</button></div>
+</form>
+
 <div class="stats">
 <div class="card"><h3>Новые</h3><p>{{ counts.new }}</p></div>
 <div class="card"><h3>В работе</h3><p>{{ counts.work }}</p></div>
 <div class="card"><h3>Сделано</h3><p>{{ counts.done }}</p></div>
 <div class="card"><h3>Не нужно</h3><p>{{ counts.reject }}</p></div>
-<div class="card"><h3>Всего</h3><p>{{ total }}</p></div>
+<div class="card"><h3>Всего доступно</h3><p>{{ total }}</p></div>
 </div>
-<form method="post" action="{{ url_for('feedback.add') }}" class="form-row">
-<input type="text" name="author" id="fb-author" placeholder="Ваше имя" required>
-<input type="text" name="text" placeholder="Что нужно? Опиши хотелку" required style="flex:1;min-width:240px">
-<button class="btn" type="submit">+ Отправить хотелку</button>
-</form>
+
 <div class="toolbar">
 <a href="{{ url_for('feedback.list_items') }}" class="btn {{ 'gray' if status=='all' }}">Все</a>
 {% for s, label in labels.items() %}
@@ -29,16 +44,19 @@
 </form>
 <a href="{{ url_for('feedback.history') }}" class="btn gray">История</a>
 </div>
+
 <table>
-<thead><tr><th>№</th><th>Кто подал</th><th>Хотелка</th><th>Статус</th><th>Комментарий</th><th>Когда</th><th>Сменить статус</th></tr></thead>
+<thead><tr><th>№</th><th>Кто</th><th>Кому</th><th>Хотелка</th><th>Статус</th><th>Комментарий</th><th>Когда</th><th>Действия</th></tr></thead>
 <tbody>
-{% for it in items %}
+{% for row in rows %}
+{% set it = row.it %}
 <tr>
-<td><b>{{ it.id }}</b></td>
+<td><b>{{ it.id }}</b>{% if it.is_private %} <span title="приватная запись">🔒</span>{% endif %}</td>
 <td>{{ it.author }}</td>
+<td>{{ it.addressee or '—' }}</td>
 <td>{{ it.text }}</td>
 <td><span class="badge {{ badges[it.status] }}">{{ labels[it.status] }}</span></td>
-<td style="max-width:240px">{{ it.comment or '—' }}</td>
+<td style="max-width:200px">{{ it.comment or '—' }}</td>
 <td style="white-space:nowrap">{{ it.created_at.strftime('%d.%m.%Y %H:%M') }}</td>
 <td>
 <form method="post" action="{{ url_for('feedback.set_status', item_id=it.id) }}" style="display:flex;flex-direction:column;gap:4px">
@@ -49,14 +67,20 @@
 <input type="text" name="who" class="fb-who" placeholder="Кто меняет" required>
 <button class="btn" type="submit" style="padding:4px 10px;font-size:12px">Сохранить</button>
 </form>
+{% if row.can_toggle %}
+<form method="post" action="{{ url_for('feedback.toggle_privacy', item_id=it.id) }}" style="margin-top:4px">
+<button class="btn gray" type="submit" style="padding:4px 10px;font-size:12px">{{ 'Сделать открытой' if it.is_private else 'Сделать приватной' }}</button>
+</form>
+{% endif %}
 </td>
 </tr>
 {% else %}
-<tr><td colspan="7" class="empty">Пока пусто. Напиши первую хотелку сверху.</td></tr>
+<tr><td colspan="8" class="empty">Пока пусто или ничего не доступно вашему пользователю. Напиши первую хотелку сверху.</td></tr>
 {% endfor %}
 </tbody>
 </table>
-<p class="note">Статусы пока может менять любой, кто зашёл (сеть своя). Каждое изменение пишется в «Историю».</p>
+<p class="note">Поля «Кто» и «Кому» — выпадающие списки пользователей; если человека нет в списке, впишите имя или должность вручную. Приватную запись видят только автор, адресат и администратор; счётчики и история тоже учитывают приватность.</p>
+
 <script>
 var a = localStorage.getItem('fb_author') || '';
 var fa = document.getElementById('fb-author');
