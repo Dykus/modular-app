@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}Корзина{% endblock %}
+{% block content %}
+<div class="welcome">
+<h2>Корзина</h2>
+<p>Удалённые задачи хранятся здесь {{ trash_days }} дней, затем удаляются автоматически. Восстановление возвращает задачу в общий список.</p>
+</div>
+
+{% if purged %}
+<div class="flash">Автоматически удалено навсегда записей старше {{ trash_days }} дней: {{ purged }}</div>
+{% endif %}
+
+<div class="toolbar">
+<a href="{{ url_for('production.list_tasks') }}" class="btn gray">← К списку задач</a>
+</div>
+
+<table>
+<thead>
+<tr>
+<th>№</th>
+<th>Описание</th>
+<th>Статус</th>
+<th>Кто удалил</th>
+<th>Когда удалено</th>
+<th>Дней в корзине</th>
+<th>Действия</th>
+</tr>
+</thead>
+<tbody>
+{% for task in tasks %}
+<tr>
+<td><strong>{{ task.number }}</strong></td>
+<td>{{ task.description }}</td>
+<td>{{ labels[task.status] }}</td>
+<td>{{ task.deleted_by or '—' }}</td>
+<td>{{ task.deleted_at.strftime('%d.%m.%Y %H:%M') if task.deleted_at else '' }}</td>
+<td>{{ (now - task.deleted_at).days if task.deleted_at else '' }}</td>
+<td>
+{% if can('production.edit') %}
+<form method="post" action="{{ url_for('production.restore_task', task_id=task.id) }}" style="display:inline">
+<button class="btn" style="padding:4px 8px;font-size:12px">Восстановить</button>
+</form>
+{% endif %}
+{% if can('production.delete') %}
+<form method="post" action="{{ url_for('production.purge_task', task_id=task.id) }}" style="display:inline" onsubmit="return confirm('Удалить задачу {{ task.number }} НАВСЕГДА? Восстановить будет невозможно.')">
+<button class="btn gray" style="padding:4px 8px;font-size:12px">Удалить навсегда</button>
+</form>
+{% endif %}
+</td>
+</tr>
+{% else %}
+<tr><td colspan="7" class="empty">Корзина пуста.</td></tr>
+{% endfor %}
+</tbody>
+</table>
+{% endblock %}

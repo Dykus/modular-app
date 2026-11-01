@@ -2,8 +2,8 @@
 {% block title %}Производство{% endblock %}
 {% block content %}
 <div class="welcome">
-<h2>🏭 Производство — задачи</h2>
-<p>Тестовый модуль для изучения. Здесь можно создавать, редактировать и удалять задачи.</p>
+<h2>Производство — задачи</h2>
+<p>Тестовый модуль для изучения. Удаление не уничтожает задачу: она попадает в корзину и хранится там 30 дней.</p>
 </div>
 
 <div class="stats">
@@ -16,6 +16,9 @@
 
 <div class="toolbar">
 <a href="{{ url_for('production.add_task') }}" class="btn">+ Добавить задачу</a>
+{% if can('production.edit') %}
+<a href="{{ url_for('production.trash_list') }}" class="btn gray">Корзина ({{ trash_count }})</a>
+{% endif %}
 
 <div style="margin-left: 20px;">
 <strong>Фильтр:</strong>
@@ -57,7 +60,7 @@
 <td>{{ task.created_at.strftime('%d.%m.%Y') }}</td>
 <td>
 <a href="{{ url_for('production.edit_task', task_id=task.id) }}" class="btn" style="padding: 4px 8px; font-size: 12px;">Изменить</a>
-<form method="post" action="{{ url_for('production.delete_task', task_id=task.id) }}" style="display: inline;" onsubmit="return confirm('Удалить задачу {{ task.number }}?')">
+<form method="post" action="{{ url_for('production.delete_task', task_id=task.id) }}" style="display: inline;" onsubmit="return confirm('Переместить задачу {{ task.number }} в корзину? Её можно будет восстановить в течение 30 дней.')">
 <button type="submit" class="btn gray" style="padding: 4px 8px; font-size: 12px;">Удалить</button>
 </form>
 </td>
@@ -72,9 +75,9 @@
 <h3>Как пользоваться</h3>
 <ul>
 <li><strong>Добавить:</strong> кнопка "+ Добавить задачу" сверху</li>
-<li><strong>Изменить:</strong> кнопка "Изменить" в строке задачи (можно менять статус, описание, ответственного)</li>
-<li><strong>Удалить:</strong> кнопка "Удалить" (с подтверждением)</li>
-<li><strong>Фильтр:</strong> кнопки над таблицей показывают только задачи с выбранным статусом</li>
+<li><strong>Изменить:</strong> кнопка "Изменить" в строке задачи</li>
+<li><strong>Удалить:</strong> задача не исчезает, а уходит в "Корзину" (кнопка со счётчиком сверху)</li>
+<li><strong>Корзина:</strong> восстановить или удалить навсегда; через 30 дней удаляется само</li>
 </ul>
 </div>
 {% endblock %}
