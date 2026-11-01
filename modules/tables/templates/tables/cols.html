@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}Колонки: {{ t.title }}{% endblock %}
+{% block content %}
+<div class="welcome"><h2>Колонки и формулы — {{ t.title }}</h2>
+<p><a class="btn gray" href="{{ url_for('tables.view', tid=t.id) }}">← К таблице</a>
+<a class="btn gray" href="{{ url_for('tables.access', tid=t.id) }}">Доступ (роли × колонки)</a></p></div>
+<table>
+<thead><tr><th>Ключ</th><th>Название</th><th>Тип</th><th>Группа</th><th>Формула</th><th>Действия</th></tr></thead>
+<tbody>
+{% for c in cols %}
+<tr><td><code>{{ c.key }}</code></td><td>{{ c.title }}</td><td>{{ c.col_type }}</td><td>{{ c.grp or '—' }}</td>
+<td>{% if c.col_type in ('computed','ref') %}<code>{{ c.formula }}</code>{% else %}—{% endif %}</td>
+<td><a class="btn" style="padding:4px 8px;font-size:12px" href="{{ url_for('tables.cols', tid=t.id, cid=c.id) }}">Править</a>
+<form method="post" style="display:inline" action="{{ url_for('tables.col_delete', tid=t.id) }}" onsubmit="return confirm('Удалить колонку?')"><input type="hidden" name="id" value="{{ c.id }}"><button class="btn gray" style="padding:4px 8px;font-size:12px">Удалить</button></form></td></tr>
+{% else %}<tr><td colspan="6" class="empty">Колонок нет.</td></tr>{% endfor %}
+</tbody>
+</table>
+
+<div class="info">
+<h3>{{ 'Правка колонки: ' ~ col.title if col else 'Новая колонка' }}</h3>
+<form method="post" action="{{ url_for('tables.col_save', tid=t.id) }}" style="display:flex;flex-direction:column;gap:8px;max-width:720px">
+{% if col %}<input type="hidden" name="id" value="{{ col.id }}">{% endif %}
+<div style="display:flex;gap:8px;flex-wrap:wrap">
+<input type="text" name="title" placeholder="Название колонки" value="{{ col.title if col else '' }}" required style="flex:2;min-width:200px">
+<input type="text" name="key" placeholder="Ключ латиницей (sum)" value="{{ col.key if col else '' }}" required style="flex:1;min-width:140px">
+<select name="col_type" style="flex:1;min-width:140px">
+{% for tp in ['text','number','date','list','computed','ref'] %}
+<option value="{{ tp }}" {{ 'selected' if col and col.col_type==tp }}>{{ tp }}</option>
+{% endfor %}
+</select>
+<input type="text" name="grp" placeholder="Группа (Отдел продаж)" value="{{ col.grp if col else '' }}" style="flex:1;min-width:140px">
+</div>
+<label>Варианты списка (через запятую, только для типа list)
+<input type="text" name="options" value="{{ col.options.replace('[','').replace(']','').replace('&quot;','') if col and col.col_type=='list' else '' }}" style="width:100%;margin-top:4px"></label>
+<fieldset style="border:1px solid #d6dbe4;border-radius:8px;padding:10px">
+<legend style="font-size:13px;color:#5a6b85">Конструктор формулы (для типов computed и ref)</legend>
+<div style="display:flex;gap:8px;flex-wrap:wrap">
+<select name="kind"><option value="arith">арифметика</option><option value="concat">склейка текста</option><option value="days">дней между дат</option><option value="if">ЕСЛИ…ТО…ИНАЧЕ</option></select>
+<select name="op"><option value="mul">умножить</option><option value="add">сложить</option><option value="sub">вычесть</option><option value="div">разделить</option></select>
+<input type="text" name="a" placeholder="A: ключ колонки или текст" style="min-width:160px">
+<input type="text" name="b" placeholder="B: ключ колонки, число или пусто=сегодня" style="min-width:200px">
+</div>
+<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">
+<input type="text" name="if_col" placeholder="ЕСЛИ колонка" style="min-width:120px">
+<select name="if_op"><option value="eq">равно</option><option value="ne">не равно</option><option value="contains">содержит</option><option value="gt">больше</option><option value="lt">меньше</option></select>
+<input type="text" name="if_val" placeholder="значение" style="min-width:100px">
+<input type="text" name="then_v" placeholder="ТО" style="min-width:80px">
+<input type="text" name="else_v" placeholder="ИНАЧЕ" style="min-width:80px">
+</div>
+<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">
+<select name="ref_table">{% for x in all_tables %}<option value="{{ x.id }}" {{ 'selected' if col and col.formula and (x.id|string) in col.formula }}>{{ x.title }}</option>{% endfor %}</select>
+<input type="text" name="match_local" placeholder="Совпадать по (ключ здесь)" style="min-width:160px">
+<input type="text" name="match_remote" placeholder="и по (ключ там)" style="min-width:140px">
+<input type="text" name="show" placeholder="Показать колонку (ключ там)" style="min-width:170px">
+</div>
+<p class="note">Ключи колонок этой таблицы: {% for c in cols %}<code>{{ c.key }}</code> {% endfor %}. Пример формулы: kind=арифметика, op=умножить, A=price, B=qty → «Итого». Для «дней»: A=deadline, B пусто → дней до срока от сегодня.</p>
+</fieldset>
+<div><button class="btn" type="submit">Сохранить колонку</button>
+<a class="btn gray" href="{{ url_for('tables.cols', tid=t.id) }}">Сброс</a></div>
+</form>
+</div>
+
+<div class="info">
+<h3>Счётчики-карточки над таблицей</h3>
+<form method="post" action="{{ url_for('tables.counters_save', tid=t.id) }}">
+<textarea name="counters" rows="4" style="width:100%">{{ counters_text }}</textarea>
+<p class="note">По строке на счётчик, формат: Название|sum или count|ключ колонки|ключ условия|значение условия. Пример: <code>В работе, сумма|sum|sum|status|В работе</code></p>
+<button class="btn" type="submit">Сохранить счётчики</button>
+</form>
+</div>
+{% endblock %}

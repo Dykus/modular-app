@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Строка: {{ t.title }}{% endblock %}
+{% block content %}
+<div class="welcome"><h2>{{ 'Новая строка' if not row else 'Правка строки №' ~ row.id }} — {{ t.title }}</h2>
+<p>Поля со значком 🔒 ваша роль менять не может: они показаны для сведения. ⚙ вычисляется программой и не редактируется.</p></div>
+<form method="post" action="{{ url_for('tables.row_save', tid=t.id) }}" class="form-row" style="flex-direction:column;align-items:stretch;gap:10px;max-width:640px">
+{% if row %}<input type="hidden" name="id" value="{{ row.id }}">{% endif %}
+{% for c in cols %}
+  {% if c.col_type in ('computed','ref') %}
+    <label>⚙ {{ c.title }} <span class="note">(вычисляется автоматически)</span></label>
+  {% elif can_edit_col(m, c.key) %}
+    {% if c.col_type == 'list' %}
+    <label>{{ c.title }}
+    <select name="f_{{ c.key }}" style="width:100%;margin-top:4px">
+    <option value="">—</option>
+    {% for o in opts[c.id] %}<option value="{{ o }}" {{ 'selected' if data.get(c.key)==o }}>{{ o }}</option>{% endfor %}
+    </select></label>
+    {% else %}
+    <label>{{ c.title }}
+    <input type="text" name="f_{{ c.key }}" value="{{ data.get(c.key, '') }}" style="width:100%;margin-top:4px"></label>
+    {% endif %}
+  {% else %}
+    <label>🔒 {{ c.title }} <span class="note">(только чтение)</span>
+    <div style="padding:6px;background:#f5f5f5;border:1px solid #ddd;margin-top:4px">{{ data.get(c.key, '') or '—' }}</div></label>
+  {% endif %}
+{% endfor %}
+<div><button class="btn" type="submit">Сохранить</button>
+<a class="btn gray" href="{{ url_for('tables.view', tid=t.id) }}">Отмена</a></div>
+</form>
+{% endblock %}

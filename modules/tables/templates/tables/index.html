@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Таблицы{% endblock %}
+{% block content %}
+<div class="welcome">
+<h2>Таблицы (конструктор)</h2>
+<p>Свои таблицы с колонками, формулами-конструктором, правами на клетки, историей и корзиной. Таблица, которую вы видите, — та, на которую вашей роли открыт доступ в матрице «Доступ».</p>
+</div>
+<table>
+<thead><tr><th>Таблица</th><th>Ключ</th><th>Создана</th></tr></thead>
+<tbody>
+{% for t in tables %}
+<tr><td><a href="{{ url_for('tables.view', tid=t.id) }}"><b>{{ t.title }}</b></a></td>
+<td><code>{{ t.key }}</code></td>
+<td>{{ t.created_at.strftime('%d.%m.%Y') }} ({{ t.created_by }})</td></tr>
+{% else %}
+<tr><td colspan="3" class="empty">Таблиц пока нет или ни одной не открыт доступ вашей роли.</td></tr>
+{% endfor %}
+</tbody>
+</table>
+{% if can('tables.manage') %}
+<div class="info">
+<h3>Создать таблицу</h3>
+<form method="post" action="{{ url_for('tables.table_new') }}" style="display:flex;gap:8px;flex-wrap:wrap">
+<input type="text" name="title" placeholder="Название (например: Заказы)" required style="min-width:200px">
+<input type="text" name="key" placeholder="Ключ латиницей (zakazy)" required style="min-width:160px">
+<button class="btn" type="submit">Создать</button>
+</form>
+<p class="note">После создания добавьте колонки (включая вычисляемые) и настройте матрицу доступа «роль × колонка».</p>
+</div>
+{% endif %}
+{% endblock %}
