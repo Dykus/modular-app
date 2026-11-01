@@ -6,6 +6,7 @@
 </div>
 <div class="welcome"><h2>{{ t.title }}</h2><p>
 <a class="btn" href="{{ url_for('tables.row_edit', tid=t.id, rid='new') }}">+ Строка</a>
+<a class="btn gray" href="{{ url_for('tables.import_xlsx', tid=t.id) }}">Импорт Excel</a>
 <a class="btn gray" href="{{ url_for('tables.view', tid=t.id) }}">Строки</a>
 <a class="btn gray" href="{{ url_for('tables.view', tid=t.id, mode='trash') }}">Корзина ({{ trash_count }})</a>
 <a class="btn gray" href="{{ url_for('tables.view', tid=t.id, mode='history') }}">История клеток</a>

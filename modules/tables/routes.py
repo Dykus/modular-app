@@ -8,6 +8,16 @@ from modules.tables.service import (jload, num, compute_value, user_access, role
                                     can_edit_col, calc_counters, TRASH_DAYS)
 import json, os, datetime
 
+TYPE_LABELS = {
+    "text": "Текст",
+    "number": "Число",
+    "date": "Дата",
+    "list": "Список",
+    "computed": "Вычисляемая (формула)",
+    "ref": "Ссылка на другую таблицу",
+}
+TYPE_CHOICES = list(TYPE_LABELS.items())
+
 tables_bp = Blueprint("tables", __name__, url_prefix="/tables", template_folder="templates")
 
 def who():
@@ -111,6 +121,89 @@ def view(tid):
                            counters=calc_counters(t, datas), logs=logs, tabs=visible_tables(),
                            trash_count=trash_count, can_edit_col=can_edit_col, trash_days=TRASH_DAYS)
 
+@tables_bp.route("/<int:tid>/import", methods=["GET", "POST"])
+@perm("tables.view")
+def import_xlsx(tid):
+    """Import .xlsx: sopostavlenie kolonok po zagolovkam, avtosozdanie nedostayushchih."""
+    t = CustomTable.query.get_or_404(tid)
+    m = user_access(tid, current_user)
+    if not (m["create"] or m["edit"] is None):
+        flash("Нет права создавать строки в этой таблице — импорт недоступен.")
+        return redirect(url_for("tables.view", tid=tid))
+    if request.method == "POST":
+        f = request.files.get("file")
+        if f is None or not f.filename:
+            flash("Выберите файл .xlsx")
+            return redirect(url_for("tables.import_xlsx", tid=tid))
+        try:
+            import openpyxl
+            wb = openpyxl.load_workbook(f.stream, data_only=True, read_only=True)
+        except Exception as e:
+            flash("Не удалось прочитать файл: " + str(e)[:200])
+            return redirect(url_for("tables.import_xlsx", tid=tid))
+        sheet_name = (request.form.get("sheet") or "").strip()
+        if sheet_name and sheet_name in wb.sheetnames:
+            ws = wb[sheet_name]
+        else:
+            ws = wb[wb.sheetnames[0]]
+        try:
+            header_row = max(1, int(request.form.get("header_row") or 1))
+        except Exception:
+            header_row = 1
+        make_cols = bool(request.form.get("make_cols"))
+        allrows = list(ws.iter_rows(values_only=True))
+        used_sheet = ws.title
+        wb.close()
+        if len(allrows) < header_row:
+            flash("В листе «" + used_sheet + "» нет строк.")
+            return redirect(url_for("tables.import_xlsx", tid=tid))
+        headers = [str(x).strip() if x is not None else "" for x in allrows[header_row - 1]]
+        cols = cols_of(tid)
+        by_title = {c.title.strip().lower(): c for c in cols}
+        created_cols = 0
+        mapping = []
+        for i, h in enumerate(headers):
+            if not h:
+                continue
+            c = by_title.get(h.lower())
+            if c is None and make_cols:
+                keys = {c2.key for c2 in cols}
+                key = "col%d" % (i + 1)
+                while key in keys:
+                    key += "x"
+                mx = db.session.query(db.func.max(TableColumn.order)).filter_by(table_id=tid).scalar() or 0
+                c = TableColumn(table_id=tid, key=key, title=h, col_type="text", order=mx + 1)
+                db.session.add(c); db.session.flush()
+                cols.append(c); by_title[h.lower()] = c
+                created_cols += 1
+            if c is not None:
+                mapping.append((i, c.key))
+        db.session.commit()
+        added = 0
+        for r in allrows[header_row:]:
+            if all((x is None or str(x).strip() == "") for x in r):
+                continue
+            data = {}
+            for i, key in mapping:
+                v = r[i] if i < len(r) else None
+                if v is None:
+                    data[key] = ""
+                elif isinstance(v, (datetime.datetime, datetime.date)):
+                    data[key] = v.strftime("%d.%m.%Y")
+                else:
+                    data[key] = str(v).strip()
+            row = TableRow(table_id=tid, data=json.dumps(data, ensure_ascii=False),
+                           created_by=who() + " (импорт)")
+            db.session.add(row); db.session.flush()
+            db.session.add(CellLog(table_id=tid, row_id=row.id, column_key="*",
+                                   old_value="", new_value="строка создана импортом Excel",
+                                   who=who()))
+            added += 1
+        db.session.commit()
+        flash("Импорт завершён (лист «" + used_sheet + "»): строк добавлено " + str(added) + ", колонок создано " + str(created_cols) + ".")
+        return redirect(url_for("tables.view", tid=tid))
+    return render_template("tables/import.html", t=t)
+
 @tables_bp.route("/<int:tid>/row/<rid>")
 @perm("tables.view")
 def row_edit(tid, rid):
@@ -210,13 +303,17 @@ def cols(tid):
     cid = request.args.get("cid", type=int)
     if cid:
         col = TableColumn.query.get_or_404(cid)
+    f = jload(col.formula, {}) if col else {}
+    opt_text = ", ".join(jload(col.options, [])) if col else ""
     all_tables = CustomTable.query.order_by(CustomTable.order, CustomTable.id).all()
     lines = []
     for c in jload(t.counters, []):
         lines.append("|".join([c.get("title", ""), c.get("func", "sum"), c.get("col", ""),
                                c.get("wcol", ""), c.get("wval", "")]))
-    return render_template("tables/cols.html", t=t, cols=cols_of(tid), col=col,
-                           all_tables=all_tables, counters_text="\n".join(lines))
+    return render_template("tables/cols.html", t=t, cols=cols_of(tid), col=col, f=f,
+                           opt_text=opt_text, all_tables=all_tables,
+                           counters_text="\n".join(lines),
+                           TYPE_LABELS=TYPE_LABELS, TYPE_CHOICES=TYPE_CHOICES)
 
 @tables_bp.route("/<int:tid>/col/save", methods=["POST"])
 @perm("tables.manage")

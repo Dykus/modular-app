@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Импорт Excel: {{ t.title }}{% endblock %}
+{% block content %}
+<div class="welcome"><h2>Импорт из Excel — {{ t.title }}</h2>
+<p><a class="btn gray" href="{{ url_for('tables.view', tid=t.id) }}">← К таблице</a></p>
+<p>Файл .xlsx читается на сервере. Колонки сопоставляются <b>по названию заголовка</b> (без учёта регистра и пробелов по краям). Строки добавляются в таблицу, существующие строки не меняются.</p></div>
+<form method="post" enctype="multipart/form-data" class="form-row" style="flex-direction:column;align-items:stretch;gap:10px;max-width:640px">
+<label>Файл .xlsx
+<input type="file" name="file" accept=".xlsx" required style="width:100%;margin-top:4px"></label>
+<label>Имя листа (пусто = первый лист)
+<input type="text" name="sheet" placeholder="например: Лист1 или Заказы" style="width:100%;margin-top:4px"></label>
+<label>Номер строки с заголовками (обычно 1)
+<input type="number" name="header_row" value="1" min="1" style="width:120px;margin-top:4px"></label>
+<label style="display:flex;align-items:center;gap:8px">
+<input type="checkbox" name="make_cols" value="1" checked>
+создавать колонки типа «Текст» для заголовков, которых нет в таблице</label>
+<div><button class="btn" type="submit">Импортировать</button></div>
+</form>
+<div class="info">
+<h3>Как подготовить файл</h3>
+<ul>
+<li>Первая строка (или та, что укажете) — заголовки: они сверяются с названиями колонок таблицы.</li>
+<li>Если хотите залить таблицу «с нуля»: сначала создайте в конструкторе колонки с теми же названиями, что в шапке Excel, — тогда всё ляжет точно по колонкам, включая числа и списки.</li>
+<li>Пустые строки пропускаются. Даты из Excel переносятся в виде дд.мм.гггг.</li>
+<li>Каждая добавленная строка получает отметку в «Истории клеток» (кто импортировал).</li>
+</ul>
+</div>
+{% endblock %}
