@@ -1,0 +1,10 @@
+{
+  "key": "primer",
+  "name": "Пример модуля",
+  "version": "1.0.0",
+  "author": "Твоя фамилия",
+  "min_app_version": "0.9.0",
+  "pip": [],
+  "default_enabled": false,
+  "description": "Шаблон: скопируйте папку modules/_template в modules/<имя>, поменяйте key и name здесь, имя blueprint в routes.py и имя подпапки шаблонов."
+}

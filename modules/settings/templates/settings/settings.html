@@ -105,7 +105,7 @@
 {% for m in modules %}
 <label style="display:block;margin:4px 0">
 <input type="checkbox" name="modules" value="{{ m.key }}" {{ 'checked' if m.key in enabled }}>
-<b>{{ m.name }}</b> <span style="color:#8a93a6">(/{{ m.key }})</span></label>
+<b>{{ m.name }}</b> <span style="color:#8a93a6">(/{{ m.key }}{% if m.get('passport') %}, v{{ m.get('passport').get('version', '?') }}, avtor: {{ m.get('passport').get('author', 'ne ukazan') }}{% endif %})</span></label>
 {% endfor %}
 <p class="note" style="margin-top:8px">Системный модуль «Настройки» выключить нельзя. Включение/выключение модуля — после перезапуска <code>python run.py</code>.</p>
 </fieldset>

@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}Пример модуля{% endblock %}
+{% block content %}
+<div class="welcome">
+<h2>Пример модуля</h2>
+<p>Эта страница создана шаблоном modules/_template. Если ты её видишь — механизм plug-and-play работает: модуль найден по module.json, подключён без правки ядра и включён галочкой в Настройках.</p>
+</div>
+<table>
+<thead><tr><th>№</th><th>Текст</th></tr></thead>
+<tbody>
+{% for n in notes %}<tr><td>{{ n.id }}</td><td>{{ n.text }}</td></tr>{% endfor %}
+</tbody>
+</table>
+{% endblock %}

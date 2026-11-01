@@ -1,4 +1,4 @@
-"""Yadro - sozdanie Flask app + avtorizaciya + dinamicheskie moduli"""
+"""Yadro - sozdanie Flask app + avtorizaciya + dinamicheskie moduli."""
 from flask import Flask, url_for, redirect, request, render_template
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import current_user
@@ -26,23 +26,28 @@ def create_app():
 
     collect()
 
-    from modules.feedback import models as feedback_models  # noqa
-    from modules.settings import models as settings_models  # noqa
-    from modules.changelog import models as changelog_models  # noqa
-    from modules.versions import models as versions_models  # noqa
-    from modules.help import models as help_models  # noqa
-    from modules.manual import models as manual_models  # noqa
+    # import modeley VSEx moduley (vkluchaya storonnie s pasportom)
+    for m in AVAILABLE_MODULES:
+        try:
+            importlib.import_module("modules.%s.models" % m["key"])
+        except ModuleNotFoundError:
+            pass
+        except Exception as e:
+            print("PREDUPREZHDENIE: models modulya %s ne zagruzilis: %s" % (m["key"], e))
     from core import models as core_models  # noqa
 
     with app.app_context():
         db.create_all()
         from core.seed import run_seed
         run_seed()
-        from modules.changelog.models import seed as seed_changelog
-        from modules.versions.models import seed as seed_versions
-        from modules.help.models import seed as seed_help
-        from modules.manual.models import seed as seed_manual
-        seed_changelog(); seed_versions(); seed_help(); seed_manual()
+        # zasevka kazhdogo modulya, esli u nego est seed()
+        for m in AVAILABLE_MODULES:
+            try:
+                mod = importlib.import_module("modules.%s.models" % m["key"])
+                if hasattr(mod, "seed"):
+                    mod.seed()
+            except Exception:
+                pass
         from modules.settings.models import get_setting, get_bool
         raw = get_setting("enabled_modules", "")
         if raw.strip():
@@ -51,7 +56,14 @@ def create_app():
             except Exception:
                 enabled = {m["key"] for m in AVAILABLE_MODULES}
         else:
-            enabled = {m["key"] for m in AVAILABLE_MODULES}
+            # bez sohranennogo spiska: bazovye vklyucheny, storonnie - po default_enabled
+            enabled = set()
+            for m in AVAILABLE_MODULES:
+                pas = m.get("passport")
+                if pas is None:
+                    enabled.add(m["key"])
+                elif pas.get("default_enabled", False):
+                    enabled.add(m["key"])
         app.config["AUTH_ENABLED"] = get_bool("auth_enabled", False)
 
     from web.routes import main_bp
@@ -64,9 +76,13 @@ def create_app():
     registered = {}
     for m in AVAILABLE_MODULES:
         if m["key"] in enabled:
-            mod = importlib.import_module(m["import_path"])
-            app.register_blueprint(getattr(mod, m["bp_attr"]))
-            registered[m["key"]] = m
+            try:
+                mod = importlib.import_module(m["import_path"])
+                app.register_blueprint(getattr(mod, m["bp_attr"]))
+                registered[m["key"]] = m
+            except Exception as e:
+                print("PREDUPREZHDENIE: modul %s NE zaregistrirovan (bitoy kod?): %s" % (m["key"], e))
+                print("  Programma prodolžaet rabotat bez nego. Isprav modul i perezapusti.")
     app.config["ENABLED_MODULES"] = registered
 
     @app.errorhandler(403)
