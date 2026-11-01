@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Редактирование: {{ task.number }}{% endblock %}
+{% block content %}
+<div class="welcome">
+<h2>Редактирование задачи {{ task.number }}</h2>
+<p>Создана: {{ task.created_at.strftime('%d.%m.%Y %H:%M') }} пользователем {{ task.created_by }}</p>
+</div>
+
+<form method="post" class="form-row" style="flex-direction: column; align-items: stretch; gap: 12px; max-width: 600px;">
+<label>Описание
+<textarea name="description" required style="width: 100%; min-height: 100px; margin-top: 4px;">{{ task.description }}</textarea></label>
+
+<label>Статус
+<select name="status" style="width: 100%; margin-top: 4px;">
+{% for status, label in labels.items() %}
+<option value="{{ status }}" {{ 'selected' if task.status==status }}>{{ label }}</option>
+{% endfor %}
+</select></label>
+
+<label>Ответственный
+<input type="text" name="assignee" value="{{ task.assignee }}" style="width: 100%; margin-top: 4px;"></label>
+
+<label>Приоритет
+<select name="priority" style="width: 100%; margin-top: 4px;">
+<option value="low" {{ 'selected' if task.priority=='low' }}>Низкий</option>
+<option value="normal" {{ 'selected' if task.priority=='normal' }}>Обычный</option>
+<option value="high" {{ 'selected' if task.priority=='high' }}>Высокий</option>
+</select></label>
+
+<label>Комментарий (для истории)
+<textarea name="comment" placeholder="Что изменилось?" style="width: 100%; min-height: 60px; margin-top: 4px;">{{ task.comment }}</textarea></label>
+
+<div style="display: flex; gap: 8px; margin-top: 12px;">
+<button class="btn" type="submit">Сохранить изменения</button>
+<a href="{{ url_for('production.list_tasks') }}" class="btn gray">Отмена</a>
+</div>
+</form>
+{% endblock %}

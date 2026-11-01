@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Новая задача{% endblock %}
+{% block content %}
+<div class="welcome">
+<h2>+ Добавить задачу</h2>
+</div>
+
+<form method="post" class="form-row" style="flex-direction: column; align-items: stretch; gap: 12px; max-width: 600px;">
+<label>Номер задачи (уникальный)
+<input type="text" name="number" required placeholder="Например: 2024-001" style="width: 100%; margin-top: 4px;"></label>
+
+<label>Описание
+<textarea name="description" required placeholder="Что нужно сделать?" style="width: 100%; min-height: 100px; margin-top: 4px;"></textarea></label>
+
+<label>Ответственный
+<input type="text" name="assignee" placeholder="Кто будет делать (необязательно)" style="width: 100%; margin-top: 4px;"></label>
+
+<label>Приоритет
+<select name="priority" style="width: 100%; margin-top: 4px;">
+<option value="low">Низкий</option>
+<option value="normal" selected>Обычный</option>
+<option value="high">Высокий</option>
+</select></label>
+
+<div style="display: flex; gap: 8px; margin-top: 12px;">
+<button class="btn" type="submit">Создать задачу</button>
+<a href="{{ url_for('production.list_tasks') }}" class="btn gray">Отмена</a>
+</div>
+</form>
+{% endblock %}
