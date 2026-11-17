@@ -10,8 +10,7 @@ BASE = d
 print("Koren' proekta: " + BASE)
 
 # =========================================================================
-# ФАЙЛ 1. tools/export_history.py — generator istorii iz lokalnoy bazy.
-# (Vnutri shablona bol'she net vlozhennyh troynyh kavychek - tolko kommentarii.)
+# ФАЙЛ 1. tools/export_history.py — generator istorii (ispravlen)
 # =========================================================================
 os.makedirs(os.path.join(BASE, "tools"), exist_ok=True)
 EXPORT = '''"""Generiruet modules/versions/history_seed.py iz lokalnoy bazy.
@@ -38,7 +37,7 @@ from datetime import datetime as _dt
 _RAW = \'\'\'{raw}\'\'\'
 _DATA = _json.loads(_RAW)
 
-_DATE_KEYS = ("released_at", "created_at", "updated_at", "ts")
+_DATE_KEYS = ("released_at", "release_date", "created_at", "updated_at", "ts")
 
 
 def _date(v):
@@ -78,11 +77,15 @@ def apply():
         db.session.add(ChangelogEntry(**kw))
         added_c += 1
     if added_r or added_c:
-        if not Release.query.filter_by(is_current=True).first():
-            top = Release.query.order_by(Release.id.desc()).first()
-            if top:
-                top.is_current = True
-        db.session.commit()
+        try:
+            if not Release.query.filter_by(is_current=True).first():
+                top = Release.query.order_by(Release.id.desc()).first()
+                if top:
+                    top.is_current = True
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            raise
     return added_r, added_c
 """
 
@@ -118,64 +121,118 @@ if __name__ == "__main__":
 '''
 with open(os.path.join(BASE, "tools", "export_history.py"), "w", encoding="utf-8", newline="\n") as f:
     f.write(EXPORT)
-print("  + tools/export_history.py (perezapisan ispravno)")
+print("  + tools/export_history.py (ispravlen)")
 
 # =========================================================================
-# Shag 2. Sgenerirovat' history_seed.py iz etoy (Windows) bazy, esli ego net
+# Shag 2. PEREGENERIROVAT' history_seed.py (staraya versiya slomana)
 # =========================================================================
 sys.path.insert(0, os.path.join(BASE, "tools"))
 import export_history as EH
 
 hs = os.path.join(BASE, "modules", "versions", "history_seed.py")
-if not os.path.exists(hs):
-    print("Generiruyu istoriyu iz lokalnoy bazy...")
-    if not EH.generate():
-        print("MARKER_END: GENERACIYA NE UDALAS'")
-        input("Enter...")
-        sys.exit(1)
-else:
-    print("  = history_seed.py uzhe est, ne regeneriruyu")
+if os.path.exists(hs):
+    os.remove(hs)
+    print("  - history_seed.py (staraya versiya)")
+print("Generiruyu istoriyu iz lokalnoy bazy...")
+if not EH.generate():
+    print("MARKER_END: GENERACIYA NE UDALAS'")
+    sys.exit(1)
 
 # =========================================================================
-# Shag 3. Patch core/app.py: primenyat' istoriyu pri kazhdom starte
+# Shag 3. Udalit' testovyy modul test_update i metku [TEST-UPDATE]
 # =========================================================================
-p = os.path.join(BASE, "core", "app.py")
-src = open(p, encoding="utf-8").read()
-if "history_seed" not in src:
-    old = "        run_seed()\n"
-    new = old + (
-        "        try:\n"
-        "            from modules.versions import history_seed as _hs\n"
-        "            _r, _c = _hs.apply()\n"
-        "            if _r or _c:\n"
-        "                print(\"  ISTORIYA: dobavleno relizov %d, zapisey zhurnala %d\" % (_r, _c))\n"
-        "        except Exception as _e:\n"
-        "            print(\"PREDUPREZHDENIE: istoriya relizov ne primenena: %s\" % _e)\n"
-    )
-    if old in src:
-        src = src.replace(old, new, 1)
+test_mod = os.path.join(BASE, "modules", "test_update")
+if os.path.exists(test_mod):
+    import shutil
+    shutil.rmtree(test_mod)
+    print("  - modules/test_update/ (udalyon)")
+
+p = os.path.join(BASE, "web", "templates", "base.html")
+if os.path.exists(p):
+    src = open(p, encoding="utf-8").read()
+    if "[TEST-UPDATE]" in src:
+        src = src.replace("<title>[TEST-UPDATE] ", "<title>")
         open(p, "w", encoding="utf-8", newline="\n").write(src)
-        print("  ~ core/app.py: istoriya primenyaetsya pri kazhdom starte")
-    else:
-        print("  ! core/app.py: yakor 'run_seed()' ne naiden, soobshchi mne")
-else:
-    print("  = core/app.py: patch istorii uzhe stoit")
+        print("  ~ web/templates/base.html: metka [TEST-UPDATE] ubrana")
+
+p = os.path.join(BASE, "core", "app.py")
+if os.path.exists(p):
+    src = open(p, encoding="utf-8").read()
+    if "test_update_bp" in src:
+        src = src.replace("\n    from modules.test_update.routes import test_update_bp\n    app.register_blueprint(test_update_bp)", "")
+        open(p, "w", encoding="utf-8", newline="\n").write(src)
+        print("  ~ core/app.py: registraciya test_update ubrana")
 
 # =========================================================================
-# Shag 4. Primenit' istoriyu k etoy baze srazu
+# Shag 4. sync_122.py — dokumentaciya po reglamentu (0.12.2)
+# =========================================================================
+SYNC = '''"""Sinhronizaciya dokumentacii: istoriya versiy + ochistka testa (0.12.2)."""
+import sys, os
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from datetime import datetime
+from core.app import create_app, db
+
+CHANGELOG_BATCH = [
+("added", "versions", "Polnaya istoriya relizov i zhurnala izmeneniy stala chast'yu koda: fayl modules/versions/history_seed.py generiruetsya iz lokalnoy bazy i primenyaetsya pri kazhdom starte prilozheniya. Lyubaya novaya mashina (VM, malina) s pervogo zapuska poluchaet polnuyu i odinakovyuyu istoriyu."),
+("added", "tools", "Skript tools/export_history.py dlya regeneracii history_seed.py posle kazhdogo novogo reliza."),
+("fixed", "versions", "Avtomaticheskoe primenenie istorii: obrabotka dat (release_date) i otkat sessii pri oshibkah."),
+("removed", "test_update", "Testovyy modul' dlya proverki obnovleniya udalen posle uspeshnogo testa."),
+("changed", "web", "Testovaya metka [TEST-UPDATE] ubrana iz zagolovkov stranic."),
+]
+
+def sync():
+    from modules.changelog.models import ChangelogEntry
+    from modules.versions.models import Release
+    from modules.settings.models import Setting
+
+    marker = db.session.get(Setting, "docs_sync_v122")
+    if marker is None or marker.value != "1":
+        for typ, mod, desc in CHANGELOG_BATCH:
+            db.session.add(ChangelogEntry(author="sinxronizaciya dokumentacii",
+                                          change_type=typ, module=mod, description=desc))
+        db.session.add(Setting(key="docs_sync_v122", value="1"))
+        db.session.commit()
+        print("  changelog: zapisey dobavleno = %d" % len(CHANGELOG_BATCH))
+    else:
+        print("  changelog: partiya 0.12.2 uzhe byla, propusk")
+
+    if not Release.query.filter_by(version="0.12.2").first():
+        Release.query.update({"is_current": False})
+        db.session.add(Release(version="0.12.2",
+            title="Polnaya istoriya versiy",
+            notes="Istoriya relizov i zhurnala izmeneniy stala chast'yu koda: generiruetsya iz lokal'noy bazy i avtomaticheski primenyaetsya pri kazhdom starte. Lyubaya novaya ustanovka (VM, malina) poluchaet polnuyu i odinakovyuyu istoriyu s pervogo zapuska.",
+            status="released", is_current=True))
+        db.session.commit()
+        print("  versions: releiz 0.12.2 sozdan i pomachen tekushchim")
+    else:
+        print("  versions: releiz 0.12.2 uzhe est")
+
+if __name__ == "__main__":
+    app = create_app()
+    with app.app_context():
+        sync()
+    print("Sinxronizaciya 0.12.2 zavershena.")
+'''
+with open(os.path.join(BASE, "sync_122.py"), "w", encoding="utf-8", newline="\n") as f:
+    f.write(SYNC)
+print("  + sync_122.py")
+
+# =========================================================================
+# Shag 5. Primenit' istoriyu i sinhronizaciyu k etoy baze
 # =========================================================================
 print("")
-print("Primenyayu istoriyu k lokalnoy baze...")
+print("Primenyayu istoriyu i sinhronizaciyu k lokal'noy baze...")
 print("-" * 50)
-proc = subprocess.run([sys.executable, "-c",
-                       "import sys; sys.path.insert(0,'.'); from core.app import create_app; create_app()"],
-                      cwd=BASE)
+subprocess.run([sys.executable, os.path.join(BASE, "sync_122.py")], cwd=BASE)
 print("-" * 50)
 print("")
 print("=" * 56)
-print("MARKER_END: istoriya versiy stala chast'yu koda")
+print("MARKER_END: istoriya ispravlena, test ochishchen, docs 0.12.2")
 print("=" * 56)
-print("V GitHub Desktop teper' dolzhno byt' 4 faila:")
-print("  core/app.py, modules/versions/history_seed.py,")
-print("  tools/export_history.py, tools/installers/install.py")
-input("Najmi Enter, aby zakryt okno...")
+print("Commit + Push: modules/versions/history_seed.py,")
+print("               tools/export_history.py, sync_122.py,")
+print("               web/templates/base.html, core/app.py,")
+print("               tools/installers/install.py")
+print("(-modules/test_update/ - udalen)")
+print("")
+print("Zatem na VM: ./update.sh")

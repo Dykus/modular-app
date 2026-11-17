@@ -22,7 +22,7 @@ from datetime import datetime as _dt
 _RAW = '''{raw}'''
 _DATA = _json.loads(_RAW)
 
-_DATE_KEYS = ("released_at", "created_at", "updated_at", "ts")
+_DATE_KEYS = ("released_at", "release_date", "created_at", "updated_at", "ts")
 
 
 def _date(v):
@@ -62,11 +62,15 @@ def apply():
         db.session.add(ChangelogEntry(**kw))
         added_c += 1
     if added_r or added_c:
-        if not Release.query.filter_by(is_current=True).first():
-            top = Release.query.order_by(Release.id.desc()).first()
-            if top:
-                top.is_current = True
-        db.session.commit()
+        try:
+            if not Release.query.filter_by(is_current=True).first():
+                top = Release.query.order_by(Release.id.desc()).first()
+                if top:
+                    top.is_current = True
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            raise
     return added_r, added_c
 """
 
