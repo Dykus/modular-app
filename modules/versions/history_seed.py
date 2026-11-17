@@ -1,5 +1,5 @@
-# AVTOGENERACIYA: polnaya istoriya relizov i zhurnala izmeneniy.
-# VRUCHNUYU NE PRAVIT'. Regeneraciya: python tools/export_history.py
+# АВТОГЕНЕРАЦИЯ: полная история релизов и журнала изменений.
+# ВРУЧНУЮ НЕ ПРАВИТЬ'. Регенерация: python tools/export_history.py
 import json as _json
 from datetime import datetime as _dt
 
@@ -19,8 +19,8 @@ def _date(v):
 
 
 def apply():
-    # Dobavlyaet v bazu tolko NEDOSTAYUSHCHIE relizy i zapisi zhurnala.
-    # Nichego suschestvuyushchego ne perezapisyvaet.
+    # Добавляет в базу только НЕДОСТАЮЩИЕ релизы и записи журнала.
+    # Ничего существующего не перезаписывает.
     from core.app import db
     from modules.versions.models import Release
     from modules.changelog.models import ChangelogEntry

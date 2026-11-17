@@ -1,6 +1,6 @@
-"""Generiruet modules/versions/history_seed.py iz lokalnoy bazy.
-Zapuskat' na razrabotochnoy mashine (Windows) posle kazhdogo novogo releiza,
-zatem kommitit', chtoby istoriya uezzhala na servery cherez Git."""
+"""Генерирует modules/versions/history_seed.py из локальной базы.
+Запускать на разработочной машине (Windows) после каждого нового релиза,
+затем коммитить, чтобы история уезжала на серверы через Git."""
 import os, sys, json, sqlite3
 
 def root():
@@ -14,8 +14,8 @@ def root():
         d = p
     return os.path.dirname(os.path.abspath(__file__))
 
-TEMPLATE = """# AVTOGENERACIYA: polnaya istoriya relizov i zhurnala izmeneniy.
-# VRUCHNUYU NE PRAVIT'. Regeneraciya: python tools/export_history.py
+TEMPLATE = """# АВТОГЕНЕРАЦИЯ: полная история релизов и журнала изменений.
+# ВРУЧНУЮ НЕ ПРАВИТЬ'. Регенерация: python tools/export_history.py
 import json as _json
 from datetime import datetime as _dt
 
@@ -35,8 +35,8 @@ def _date(v):
 
 
 def apply():
-    # Dobavlyaet v bazu tolko NEDOSTAYUSHCHIE relizy i zapisi zhurnala.
-    # Nichego suschestvuyushchego ne perezapisyvaet.
+    # Добавляет в базу только НЕДОСТАЮЩИЕ релизы и записи журнала.
+    # Ничего существующего не перезаписывает.
     from core.app import db
     from modules.versions.models import Release
     from modules.changelog.models import ChangelogEntry
@@ -79,7 +79,7 @@ def generate():
     base = root()
     dbp = os.path.join(base, "data", "database.db")
     if not os.path.isfile(dbp):
-        print("NET bazy: " + dbp)
+        print("НЕТ базы: " + dbp)
         return False
     con = sqlite3.connect(dbp)
     con.row_factory = sqlite3.Row
@@ -97,7 +97,7 @@ def generate():
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "w", encoding="utf-8", newline="\n") as f:
         f.write(out)
-    print("  history_seed.py: relizov = %d, zapisey zhurnala = %d" % (len(rels), len(chs)))
+    print("  history_seed.py: релизов = %d, записей журнала = %d" % (len(rels), len(chs)))
     return True
 
 

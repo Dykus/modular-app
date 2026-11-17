@@ -1,5 +1,6 @@
-import os, subprocess, sys
+import os, subprocess, sys, sqlite3, shutil
 
+# Сам найти корень проекта
 d = os.path.dirname(os.path.abspath(__file__))
 while not os.path.isfile(os.path.join(d, "run.py")):
     p = os.path.dirname(d)
@@ -7,15 +8,15 @@ while not os.path.isfile(os.path.join(d, "run.py")):
         break
     d = p
 BASE = d
-print("Koren' proekta: " + BASE)
+print("Корень проекта: " + BASE)
 
 # =========================================================================
-# ФАЙЛ 1. tools/export_history.py — generator istorii (ispravlen)
+# ФАЙЛ 1. tools/export_history.py — генератор истории (исправлен)
 # =========================================================================
 os.makedirs(os.path.join(BASE, "tools"), exist_ok=True)
-EXPORT = '''"""Generiruet modules/versions/history_seed.py iz lokalnoy bazy.
-Zapuskat' na razrabotochnoy mashine (Windows) posle kazhdogo novogo releiza,
-zatem kommitit', chtoby istoriya uezzhala na servery cherez Git."""
+EXPORT = '''"""Генерирует modules/versions/history_seed.py из локальной базы.
+Запускать на разработочной машине (Windows) после каждого нового релиза,
+затем коммитить, чтобы история уезжала на серверы через Git."""
 import os, sys, json, sqlite3
 
 def root():
@@ -29,8 +30,8 @@ def root():
         d = p
     return os.path.dirname(os.path.abspath(__file__))
 
-TEMPLATE = """# AVTOGENERACIYA: polnaya istoriya relizov i zhurnala izmeneniy.
-# VRUCHNUYU NE PRAVIT'. Regeneraciya: python tools/export_history.py
+TEMPLATE = """# АВТОГЕНЕРАЦИЯ: полная история релизов и журнала изменений.
+# ВРУЧНУЮ НЕ ПРАВИТЬ'. Регенерация: python tools/export_history.py
 import json as _json
 from datetime import datetime as _dt
 
@@ -50,8 +51,8 @@ def _date(v):
 
 
 def apply():
-    # Dobavlyaet v bazu tolko NEDOSTAYUSHCHIE relizy i zapisi zhurnala.
-    # Nichego suschestvuyushchego ne perezapisyvaet.
+    # Добавляет в базу только НЕДОСТАЮЩИЕ релизы и записи журнала.
+    # Ничего существующего не перезаписывает.
     from core.app import db
     from modules.versions.models import Release
     from modules.changelog.models import ChangelogEntry
@@ -94,7 +95,7 @@ def generate():
     base = root()
     dbp = os.path.join(base, "data", "database.db")
     if not os.path.isfile(dbp):
-        print("NET bazy: " + dbp)
+        print("НЕТ базы: " + dbp)
         return False
     con = sqlite3.connect(dbp)
     con.row_factory = sqlite3.Row
@@ -112,7 +113,7 @@ def generate():
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "w", encoding="utf-8", newline="\\n") as f:
         f.write(out)
-    print("  history_seed.py: relizov = %d, zapisey zhurnala = %d" % (len(rels), len(chs)))
+    print("  history_seed.py: релизов = %d, записей журнала = %d" % (len(rels), len(chs)))
     return True
 
 
@@ -121,63 +122,122 @@ if __name__ == "__main__":
 '''
 with open(os.path.join(BASE, "tools", "export_history.py"), "w", encoding="utf-8", newline="\n") as f:
     f.write(EXPORT)
-print("  + tools/export_history.py (ispravlen)")
+print("  + tools/export_history.py (исправлен)")
 
 # =========================================================================
-# Shag 2. PEREGENERIROVAT' history_seed.py (staraya versiya slomana)
+# ФАЙЛ 2. update.sh — полностью по-русски
 # =========================================================================
-sys.path.insert(0, os.path.join(BASE, "tools"))
-import export_history as EH
+UPDATE_SH = '''#!/usr/bin/env bash
+# ОДНА КОМАНДА ВЫКЛАДКИ: бэкап -> .env -> git pull -> зависимости ->
+# установщик -> принудительное применение истории -> перезапуск службы -> проверка HTTP.
+set -euo pipefail
+cd "$(dirname "$0")"
+PY=./venv/bin/python
+if [ ! -x "$PY" ]; then
+  echo "ОШИБКА: нет venv. Создайте: python3 -m venv venv && ./venv/bin/python -m pip install -r requirements.txt"
+  exit 1
+fi
 
+echo "[1/7] Бэкап базы..."
+./backup.sh
+
+echo "[2/7] Файл .env..."
+if [ ! -f .env ]; then
+  cp .env.example .env
+  KEY=$($PY -c "import secrets; print(secrets.token_hex(32))")
+  sed -i "s|^APP_SECRET_KEY=.*|APP_SECRET_KEY=${KEY}|" .env
+  echo "  создан .env со случайным секретным ключом"
+else
+  echo "  .env уже есть, не трогаем"
+fi
+
+echo "[3/7] git pull..."
+git pull --ff-only
+
+echo "[4/7] Зависимости..."
+$PY -m pip install -q -r requirements.txt
+
+echo "[5/7] Установщик (если пришёл новый)..."
+if [ -f tools/installers/install.py ]; then
+  cp tools/installers/install.py ./install.py
+  $PY install.py < /dev/null
+else
+  echo "  нового установщика нет, пропуск"
+fi
+
+echo "[6/7] Применение истории версий..."
+$PY -c "
+import sys
+sys.path.insert(0, '.')
+from core.app import create_app, db
+app = create_app()
+with app.app_context():
+    try:
+        from modules.versions import history_seed as hs
+        added_r, added_c = hs.apply()
+        if added_r or added_c:
+            print(f'  история: добавлено релизов {added_r}, записей журнала {added_c}')
+        else:
+            print('  история: всё уже есть')
+    except Exception as e:
+        print(f'  ПРЕДУПРЕЖДЕНИЕ: история не применена: {e}')
+"
+
+echo "[7/7] Перезапуск службы..."
+if systemctl is-enabled modular-app >/dev/null 2>&1; then
+  sudo systemctl restart modular-app
+  sleep 3
+  echo "  служба: $(systemctl is-active modular-app)"
+else
+  echo "  служба ещё не установлена."
+  echo "  Поставьте один раз: ./deploy/install-service.sh"
+fi
+
+PORT=$($PY -c "import config; print(config.PORT)")
+echo "Проверка HTTP на порту ${PORT}:"
+curl -sS -o /dev/null -w "  HTTP %{http_code}\\n" "http://127.0.0.1:${PORT}/" || echo "  сервер не ответил"
+echo "Готово."
+'''
+with open(os.path.join(BASE, "update.sh"), "w", encoding="utf-8", newline="\n") as f:
+    f.write(UPDATE_SH)
+print("  + update.sh (полностью по-русски)")
+
+# =========================================================================
+# Шаг 3. Принудительно перегенерировать history_seed.py
+# =========================================================================
 hs = os.path.join(BASE, "modules", "versions", "history_seed.py")
 if os.path.exists(hs):
     os.remove(hs)
-    print("  - history_seed.py (staraya versiya)")
-print("Generiruyu istoriyu iz lokalnoy bazy...")
-if not EH.generate():
-    print("MARKER_END: GENERACIYA NE UDALAS'")
+    print("  - history_seed.py (старая версия удалена)")
+
+print("Генерирую историю из локальной базы...")
+proc = subprocess.run([sys.executable, os.path.join(BASE, "tools", "export_history.py")], cwd=BASE)
+if proc.returncode != 0:
+    print("MARKER_END: ГЕНЕРАЦИЯ НЕ УДАЛАСЬ")
     sys.exit(1)
 
 # =========================================================================
-# Shag 3. Udalit' testovyy modul test_update i metku [TEST-UPDATE]
+# Шаг 4. Проверить количество релизов в базе
 # =========================================================================
-test_mod = os.path.join(BASE, "modules", "test_update")
-if os.path.exists(test_mod):
-    import shutil
-    shutil.rmtree(test_mod)
-    print("  - modules/test_update/ (udalyon)")
-
-p = os.path.join(BASE, "web", "templates", "base.html")
-if os.path.exists(p):
-    src = open(p, encoding="utf-8").read()
-    if "[TEST-UPDATE]" in src:
-        src = src.replace("<title>[TEST-UPDATE] ", "<title>")
-        open(p, "w", encoding="utf-8", newline="\n").write(src)
-        print("  ~ web/templates/base.html: metka [TEST-UPDATE] ubrana")
-
-p = os.path.join(BASE, "core", "app.py")
-if os.path.exists(p):
-    src = open(p, encoding="utf-8").read()
-    if "test_update_bp" in src:
-        src = src.replace("\n    from modules.test_update.routes import test_update_bp\n    app.register_blueprint(test_update_bp)", "")
-        open(p, "w", encoding="utf-8", newline="\n").write(src)
-        print("  ~ core/app.py: registraciya test_update ubrana")
+dbp = os.path.join(BASE, "data", "database.db")
+con = sqlite3.connect(dbp)
+count = con.execute("SELECT COUNT(*) FROM release").fetchone()[0]
+con.close()
+print(f"  В Windows-базе: {count} релизов")
 
 # =========================================================================
-# Shag 4. sync_122.py — dokumentaciya po reglamentu (0.12.2)
+# ФАЙЛ 5. sync_123.py — документация (0.12.3)
 # =========================================================================
-SYNC = '''"""Sinhronizaciya dokumentacii: istoriya versiy + ochistka testa (0.12.2)."""
+SYNC = '''"""Синхронизация документации: русский update.sh + принудительное применение истории (0.12.3)."""
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from datetime import datetime
 from core.app import create_app, db
 
 CHANGELOG_BATCH = [
-("added", "versions", "Polnaya istoriya relizov i zhurnala izmeneniy stala chast'yu koda: fayl modules/versions/history_seed.py generiruetsya iz lokalnoy bazy i primenyaetsya pri kazhdom starte prilozheniya. Lyubaya novaya mashina (VM, malina) s pervogo zapuska poluchaet polnuyu i odinakovyuyu istoriyu."),
-("added", "tools", "Skript tools/export_history.py dlya regeneracii history_seed.py posle kazhdogo novogo reliza."),
-("fixed", "versions", "Avtomaticheskoe primenenie istorii: obrabotka dat (release_date) i otkat sessii pri oshibkah."),
-("removed", "test_update", "Testovyy modul' dlya proverki obnovleniya udalen posle uspeshnogo testa."),
-("changed", "web", "Testovaya metka [TEST-UPDATE] ubrana iz zagolovkov stranic."),
+("changed", "deploy", "update.sh полностью на русском языке: все шаги, сообщения и проверки читаются по-русски."),
+("added", "deploy", "Принудительное применение истории версий при каждом update.sh: история дольётся даже если автоприменение при старте не сработало."),
+("fixed", "versions", "Гарантированное применение истории: отдельный шаг в update.sh, независимый от автоприменения при старте."),
 ]
 
 def sync():
@@ -185,54 +245,59 @@ def sync():
     from modules.versions.models import Release
     from modules.settings.models import Setting
 
-    marker = db.session.get(Setting, "docs_sync_v122")
+    marker = db.session.get(Setting, "docs_sync_v123")
     if marker is None or marker.value != "1":
         for typ, mod, desc in CHANGELOG_BATCH:
-            db.session.add(ChangelogEntry(author="sinxronizaciya dokumentacii",
+            db.session.add(ChangelogEntry(author="синхронизация документации",
                                           change_type=typ, module=mod, description=desc))
-        db.session.add(Setting(key="docs_sync_v122", value="1"))
+        db.session.add(Setting(key="docs_sync_v123", value="1"))
         db.session.commit()
-        print("  changelog: zapisey dobavleno = %d" % len(CHANGELOG_BATCH))
+        print("  changelog: записей добавлено = %d" % len(CHANGELOG_BATCH))
     else:
-        print("  changelog: partiya 0.12.2 uzhe byla, propusk")
+        print("  changelog: партия 0.12.3 уже была, пропуск")
 
-    if not Release.query.filter_by(version="0.12.2").first():
+    if not Release.query.filter_by(version="0.12.3").first():
         Release.query.update({"is_current": False})
-        db.session.add(Release(version="0.12.2",
-            title="Polnaya istoriya versiy",
-            notes="Istoriya relizov i zhurnala izmeneniy stala chast'yu koda: generiruetsya iz lokal'noy bazy i avtomaticheski primenyaetsya pri kazhdom starte. Lyubaya novaya ustanovka (VM, malina) poluchaet polnuyu i odinakovyuyu istoriyu s pervogo zapuska.",
+        db.session.add(Release(version="0.12.3",
+            title="Русский update.sh + принудительная история",
+            notes="Скрипт update.sh полностью переписан по-русски. Добавлен отдельный шаг принудительного применения истории версий — история дольётся на сервер даже если автоприменение при старте не сработало.",
             status="released", is_current=True))
         db.session.commit()
-        print("  versions: releiz 0.12.2 sozdan i pomachen tekushchim")
+        print("  versions: релиз 0.12.3 создан и помечен текущим")
     else:
-        print("  versions: releiz 0.12.2 uzhe est")
+        print("  versions: релиз 0.12.3 уже есть")
 
 if __name__ == "__main__":
     app = create_app()
     with app.app_context():
         sync()
-    print("Sinxronizaciya 0.12.2 zavershena.")
+    print("Синхронизация 0.12.3 завершена.")
 '''
-with open(os.path.join(BASE, "sync_122.py"), "w", encoding="utf-8", newline="\n") as f:
+with open(os.path.join(BASE, "sync_123.py"), "w", encoding="utf-8", newline="\n") as f:
     f.write(SYNC)
-print("  + sync_122.py")
+print("  + sync_123.py")
 
 # =========================================================================
-# Shag 5. Primenit' istoriyu i sinhronizaciyu k etoy baze
+# Шаг 5. Применить синхронизацию к локальной базе
 # =========================================================================
 print("")
-print("Primenyayu istoriyu i sinhronizaciyu k lokal'noy baze...")
+print("Применяю синхронизацию к локальной базе...")
 print("-" * 50)
-subprocess.run([sys.executable, os.path.join(BASE, "sync_122.py")], cwd=BASE)
+proc = subprocess.run([sys.executable, os.path.join(BASE, "sync_123.py")], cwd=BASE)
 print("-" * 50)
-print("")
-print("=" * 56)
-print("MARKER_END: istoriya ispravlena, test ochishchen, docs 0.12.2")
-print("=" * 56)
-print("Commit + Push: modules/versions/history_seed.py,")
-print("               tools/export_history.py, sync_122.py,")
-print("               web/templates/base.html, core/app.py,")
-print("               tools/installers/install.py")
-print("(-modules/test_update/ - udalen)")
-print("")
-print("Zatem na VM: ./update.sh")
+
+if proc.returncode == 0:
+    print("")
+    print("=" * 56)
+    print("MARKER_END: русский update.sh + история 0.12.3")
+    print("=" * 56)
+    print("Commit + Push: update.sh, modules/versions/history_seed.py,")
+    print("               sync_123.py, tools/export_history.py,")
+    print("               tools/installers/install.py")
+    print("")
+    print("Затем на VM: ./update.sh")
+    print("Вывод теперь полностью по-русски!")
+    print("История дольётся принудительно на шаге [6/7].")
+else:
+    print("")
+    print("MARKER_END: синхронизация упала")
