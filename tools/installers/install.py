@@ -1,6 +1,5 @@
 import os, subprocess, sys, sqlite3
 
-# Сам найти корень проекта
 d = os.path.dirname(os.path.abspath(__file__))
 while not os.path.isfile(os.path.join(d, "run.py")):
     p = os.path.dirname(d)
@@ -11,12 +10,14 @@ BASE = d
 print("Корень проекта: " + BASE)
 
 # =========================================================================
-# ФАЙЛ 1. tools/export_history.py — генератор истории (запускать ТОЛЬКО на Windows)
+# ФАЙЛ 1. tools/export_history.py — с исправленным списком дат
+# Добавил "date" (колонка в changelog_entry) и разделил коммиты,
+# чтобы autoflush не ломал всю сессию при ошибке в журнале.
 # =========================================================================
 os.makedirs(os.path.join(BASE, "tools"), exist_ok=True)
 EXPORT = '''"""Генерирует modules/versions/history_seed.py из локальной базы.
 ВАЖНО: запускать ТОЛЬКО на разработочной машине (Windows), где полная база.
-На сервере (Linux) НЕ запускать — там база неполная, и история обрежется.
+На сервере (Linux) НЕ запускать — там база неполная, история обрежется.
 Запуск: python tools/export_history.py, затем commit + push."""
 import os, sys, json, sqlite3
 
@@ -40,7 +41,9 @@ from datetime import datetime as _dt
 _RAW = \'\'\'{raw}\'\'\'
 _DATA = _json.loads(_RAW)
 
-_DATE_KEYS = ("released_at", "release_date", "created_at", "updated_at", "ts")
+# Все возможные имена колонок с датами во всех таблицах проекта.
+# Если новое поле-дата появится в модели — добавить сюда, иначе будет TypeError.
+_DATE_KEYS = ("released_at", "release_date", "date", "created_at", "updated_at", "ts")
 
 
 def _date(v):
@@ -60,6 +63,8 @@ def apply():
     from modules.changelog.models import ChangelogEntry
     cols_r = set(Release.__table__.columns.keys())
     cols_c = set(ChangelogEntry.__table__.columns.keys())
+
+    # РЕЛИЗЫ: отдельная транзакция, чтобы autoflush журнала её не сломал.
     have_r = {r.version for r in Release.query.all()}
     added_r = 0
     for rec in _DATA["releases"]:
@@ -70,6 +75,14 @@ def apply():
         kw["is_current"] = False
         db.session.add(Release(**kw))
         added_r += 1
+    if added_r:
+        try:
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            raise
+
+    # ЖУРНАЛ: отдельная транзакция.
     have_c = {(c.module, c.description) for c in ChangelogEntry.query.all()}
     added_c = 0
     for rec in _DATA["changelog"]:
@@ -79,16 +92,20 @@ def apply():
               for k, v in rec.items() if k in cols_c and k not in ("id",)}
         db.session.add(ChangelogEntry(**kw))
         added_c += 1
-    if added_r or added_c:
+    if added_c:
         try:
-            if not Release.query.filter_by(is_current=True).first():
-                top = Release.query.order_by(Release.id.desc()).first()
-                if top:
-                    top.is_current = True
             db.session.commit()
         except Exception:
             db.session.rollback()
             raise
+
+    # Гарантируем, что текущий релиз помечен.
+    if not Release.query.filter_by(is_current=True).first():
+        top = Release.query.order_by(Release.id.desc()).first()
+        if top:
+            top.is_current = True
+            db.session.commit()
+
     return added_r, added_c
 """
 
@@ -126,17 +143,20 @@ if __name__ == "__main__":
 '''
 with open(os.path.join(BASE, "tools", "export_history.py"), "w", encoding="utf-8", newline="\n") as f:
     f.write(EXPORT)
-print("  + tools/export_history.py (исправлен)")
+print("  + tools/export_history.py (добавлено 'date' в _DATE_KEYS, разделены транзакции)")
 
 # =========================================================================
-# Шаг 2. Определить, где мы запущены (Windows или Linux)
+# Шаг 2. Определить платформу и действовать соответственно
 # =========================================================================
 is_windows = sys.platform.startswith("win")
 if is_windows:
     print("  среда: Windows (разработочная машина)")
-    print("  генерирую history_seed.py из полной базы...")
+    print("  перегенерирую history_seed.py из полной базы...")
     sys.path.insert(0, os.path.join(BASE, "tools"))
+    # Перезагружаем модуль, если он уже импортировался в предыдущих запусках
+    import importlib
     import export_history as EH
+    importlib.reload(EH)
     hs = os.path.join(BASE, "modules", "versions", "history_seed.py")
     if os.path.exists(hs):
         os.remove(hs)
@@ -146,9 +166,10 @@ if is_windows:
         sys.exit(1)
     dbp = os.path.join(BASE, "data", "database.db")
     con = sqlite3.connect(dbp)
-    count = con.execute("SELECT COUNT(*) FROM release").fetchone()[0]
+    count_r = con.execute("SELECT COUNT(*) FROM release").fetchone()[0]
+    count_c = con.execute("SELECT COUNT(*) FROM changelog_entry").fetchone()[0]
     con.close()
-    print(f"  В Windows-базе: {count} релизов")
+    print(f"  В Windows-базе: {count_r} релизов, {count_c} записей журнала")
 else:
     print("  среда: Linux (сервер)")
     print("  НЕ генерирую history_seed.py — использую версию из Git")
@@ -157,20 +178,18 @@ else:
         print("  history_seed.py уже есть в Git")
     else:
         print("  ПРЕДУПРЕЖДЕНИЕ: history_seed.py отсутствует!")
-        print("  Запустите на Windows: python tools/export_history.py, затем commit + push")
 
 # =========================================================================
-# ФАЙЛ 3. sync_124.py — документация (0.12.4)
+# ФАЙЛ 3. sync_125.py — документация (0.12.5)
 # =========================================================================
-SYNC = '''"""Синхронизация документации: исправление генерации истории (0.12.4)."""
+SYNC = '''"""Синхронизация документации: исправление истории версий (0.12.5)."""
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from datetime import datetime
 from core.app import create_app, db
 
 CHANGELOG_BATCH = [
-("fixed", "tools", "export_history.py теперь запускается ТОЛЬКО на разработочной машине (Windows), где полная база. На сервере (Linux) история берётся готовой из Git, а не генерируется из неполной локальной базы."),
-("added", "tools", "Проверка платформы: генератор истории автоматически определяет Windows/Linux и на сервере не запускается."),
+("fixed", "versions", "История версий наконец применяется полностью: колонка «date» в таблице changelog_entry добавлена в список дат, транзакции разделены (релизы и журнал коммитятся отдельно) — autoflush больше не ломает сессию. Сервер получает все релизы 0.6.0–0.12.4 и полный журнал изменений."),
 ]
 
 def sync():
@@ -178,62 +197,65 @@ def sync():
     from modules.versions.models import Release
     from modules.settings.models import Setting
 
-    marker = db.session.get(Setting, "docs_sync_v124")
+    marker = db.session.get(Setting, "docs_sync_v125")
     if marker is None or marker.value != "1":
         for typ, mod, desc in CHANGELOG_BATCH:
             db.session.add(ChangelogEntry(author="синхронизация документации",
                                           change_type=typ, module=mod, description=desc))
-        db.session.add(Setting(key="docs_sync_v124", value="1"))
+        db.session.add(Setting(key="docs_sync_v125", value="1"))
         db.session.commit()
         print("  changelog: записей добавлено = %d" % len(CHANGELOG_BATCH))
     else:
-        print("  changelog: партия 0.12.4 уже была, пропуск")
+        print("  changelog: партия 0.12.5 уже была, пропуск")
 
-    if not Release.query.filter_by(version="0.12.4").first():
+    if not Release.query.filter_by(version="0.12.5").first():
         Release.query.update({"is_current": False})
-        db.session.add(Release(version="0.12.4",
-            title="Исправление генерации истории",
-            notes="Генератор истории версий (tools/export_history.py) теперь запускается только на разработочной машине (Windows), где полная база. На сервере (Linux) история берётся готовой из Git, а не генерируется из неполной локальной базы — это предотвращает обрезание истории.",
+        db.session.add(Release(version="0.12.5",
+            title="Полная история версий на сервере",
+            notes="История релизов и журнала изменений наконец применяется полностью на сервере. Исправлены две ошибки: колонка «date» в таблице changelog_entry добавлена в список дат; транзакции релизов и журнала разделены — autoflush больше не ломает сессию. Все релизы от 0.6.0 до 0.12.4 и полный журнал теперь видны.",
             status="released", is_current=True))
         db.session.commit()
-        print("  versions: релиз 0.12.4 создан и помечен текущим")
+        print("  versions: релиз 0.12.5 создан и помечен текущим")
     else:
-        print("  versions: релиз 0.12.4 уже есть")
+        print("  versions: релиз 0.12.5 уже есть")
 
 if __name__ == "__main__":
     app = create_app()
     with app.app_context():
         sync()
-    print("Синхронизация 0.12.4 завершена.")
+    print("Синхронизация 0.12.5 завершена.")
 '''
-with open(os.path.join(BASE, "sync_124.py"), "w", encoding="utf-8", newline="\n") as f:
+with open(os.path.join(BASE, "sync_125.py"), "w", encoding="utf-8", newline="\n") as f:
     f.write(SYNC)
-print("  + sync_124.py")
+print("  + sync_125.py")
 
 # =========================================================================
-# Шаг 3. Применить синхронизацию к локальной базе (на любой платформе)
+# Шаг 3. Применить синхронизацию к локальной базе (на Windows это нужно,
+# на сервере уже есть в истории из Git)
 # =========================================================================
 print("")
 print("Применяю синхронизацию к локальной базе...")
 print("-" * 50)
-proc = subprocess.run([sys.executable, os.path.join(BASE, "sync_124.py")], cwd=BASE)
+proc = subprocess.run([sys.executable, os.path.join(BASE, "sync_125.py")], cwd=BASE)
 print("-" * 50)
 
 if proc.returncode == 0:
     print("")
     print("=" * 56)
-    print("MARKER_END: исправление генерации истории 0.12.4")
+    print("MARKER_END: полная история версий 0.12.5")
     print("=" * 56)
     if is_windows:
-        print("Commit + Push: modules/versions/history_seed.py,")
-        print("               sync_124.py, tools/export_history.py,")
-        print("               tools/installers/install.py")
+        print("Commit + Push:")
+        print("  modules/versions/history_seed.py")
+        print("  sync_125.py")
+        print("  tools/export_history.py")
+        print("  tools/installers/install.py")
         print("")
         print("Затем на VM: git pull && ./update.sh")
-        print("История дольётся из Git (полная версия с Windows).")
+        print("Сервер получит ВСЕ релизы 0.6.0–0.12.5 и полный журнал.")
     else:
-        print("На сервере: commit + push не нужен (генерация только на Windows)")
-        print("Просто перезапустите службу: sudo systemctl restart modular-app")
+        print("На сервере: просто перезапустите службу:")
+        print("  sudo systemctl restart modular-app")
 else:
     print("")
     print("MARKER_END: синхронизация упала")
