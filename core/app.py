@@ -48,16 +48,16 @@ def create_app():
         try:
             from modules.versions import docs_seed as _ds
             _h, _m = _ds.apply()
-            print("  ДОКУМЕНТАЦИЯ: статей справки %d, разделов руководства %d" % (_h, _m))
+            print("  ДОКУМЕНТАЦИЯ: статей справки %d, разделов руководства %d" % (_h, _m), flush=True)
         except Exception as _e:
-            print("PREDUPREZHDENIE: документация не применена: %s" % _e)
+            print("PREDUPREZHDENIE: документация не применена: %s" % _e, flush=True)
         try:
             from modules.versions import history_seed as _hs
             _r, _c = _hs.apply()
             if _r or _c:
-                print("  ISTORIYA: dobavleno relizov %d, zapisey zhurnala %d" % (_r, _c))
+                print("  ISTORIYA: dobavleno relizov %d, zapisey zhurnala %d" % (_r, _c), flush=True)
         except Exception as _e:
-            print("PREDUPREZHDENIE: istoriya relizov ne primenena: %s" % _e)
+            print("PREDUPREZHDENIE: istoriya relizov ne primenena: %s" % _e, flush=True)
         for m in AVAILABLE_MODULES:
             try:
                 mod = importlib.import_module("modules.%s.models" % m["key"])
