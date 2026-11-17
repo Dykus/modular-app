@@ -74,6 +74,8 @@ def create_app():
     from core.auth_routes import auth_bp
     app.register_blueprint(auth_bp)
     from modules.settings.routes import settings_bp
+    from modules.test_update.routes import test_update_bp
+    app.register_blueprint(test_update_bp)
     app.register_blueprint(settings_bp)
 
     registered = {}
