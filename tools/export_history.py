@@ -35,7 +35,8 @@ def _date(v):
 
 
 def apply():
-    """Dobavlyaet v bazu tolko NEDOSTAYUSHCHIE relizy i zapisi zhurnala."""
+    # Dobavlyaet v bazu tolko NEDOSTAYUSHCHIE relizy i zapisi zhurnala.
+    # Nichego suschestvuyushchego ne perezapisyvaet.
     from core.app import db
     from modules.versions.models import Release
     from modules.changelog.models import ChangelogEntry

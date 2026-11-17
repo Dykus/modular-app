@@ -45,6 +45,13 @@ def create_app():
         db.create_all()
         from core.seed import run_seed
         run_seed()
+        try:
+            from modules.versions import history_seed as _hs
+            _r, _c = _hs.apply()
+            if _r or _c:
+                print("  ISTORIYA: dobavleno relizov %d, zapisey zhurnala %d" % (_r, _c))
+        except Exception as _e:
+            print("PREDUPREZHDENIE: istoriya relizov ne primenena: %s" % _e)
         for m in AVAILABLE_MODULES:
             try:
                 mod = importlib.import_module("modules.%s.models" % m["key"])

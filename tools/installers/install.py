@@ -11,7 +11,7 @@ print("Koren' proekta: " + BASE)
 
 # =========================================================================
 # ФАЙЛ 1. tools/export_history.py — generator istorii iz lokalnoy bazy.
-# Zapuskat' na WINDOWS posle kazhdogo novogo releiza, potom commit.
+# (Vnutri shablona bol'she net vlozhennyh troynyh kavychek - tolko kommentarii.)
 # =========================================================================
 os.makedirs(os.path.join(BASE, "tools"), exist_ok=True)
 EXPORT = '''"""Generiruet modules/versions/history_seed.py iz lokalnoy bazy.
@@ -51,7 +51,8 @@ def _date(v):
 
 
 def apply():
-    """Dobavlyaet v bazu tolko NEDOSTAYUSHCHIE relizy i zapisi zhurnala."""
+    # Dobavlyaet v bazu tolko NEDOSTAYUSHCHIE relizy i zapisi zhurnala.
+    # Nichego suschestvuyushchego ne perezapisyvaet.
     from core.app import db
     from modules.versions.models import Release
     from modules.changelog.models import ChangelogEntry
@@ -117,7 +118,7 @@ if __name__ == "__main__":
 '''
 with open(os.path.join(BASE, "tools", "export_history.py"), "w", encoding="utf-8", newline="\n") as f:
     f.write(EXPORT)
-print("  + tools/export_history.py")
+print("  + tools/export_history.py (perezapisan ispravno)")
 
 # =========================================================================
 # Shag 2. Sgenerirovat' history_seed.py iz etoy (Windows) bazy, esli ego net
@@ -128,7 +129,10 @@ import export_history as EH
 hs = os.path.join(BASE, "modules", "versions", "history_seed.py")
 if not os.path.exists(hs):
     print("Generiruyu istoriyu iz lokalnoy bazy...")
-    EH.generate()
+    if not EH.generate():
+        print("MARKER_END: GENERACIYA NE UDALAS'")
+        input("Enter...")
+        sys.exit(1)
 else:
     print("  = history_seed.py uzhe est, ne regeneriruyu")
 
@@ -153,7 +157,7 @@ if "history_seed" not in src:
         open(p, "w", encoding="utf-8", newline="\n").write(src)
         print("  ~ core/app.py: istoriya primenyaetsya pri kazhdom starte")
     else:
-        print("  ! core/app.py: yakor 'run_seed()' ne naiden, patch vruchnuyu")
+        print("  ! core/app.py: yakor 'run_seed()' ne naiden, soobshchi mne")
 else:
     print("  = core/app.py: patch istorii uzhe stoit")
 
@@ -171,7 +175,7 @@ print("")
 print("=" * 56)
 print("MARKER_END: istoriya versiy stala chast'yu koda")
 print("=" * 56)
-print("Commit + Push: core/app.py, modules/versions/history_seed.py,")
-print("               tools/export_history.py, tools/installers/install.py")
-print("Zatem na VM: ./update.sh  (istoriya dozbetsya sama pri starte sluzhby)")
+print("V GitHub Desktop teper' dolzhno byt' 4 faila:")
+print("  core/app.py, modules/versions/history_seed.py,")
+print("  tools/export_history.py, tools/installers/install.py")
 input("Najmi Enter, aby zakryt okno...")
