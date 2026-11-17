@@ -1,151 +1,177 @@
 import os, subprocess, sys
 
-# Sam naht koren' proekta (rabotaet iz kornya i iz tools/installers/)
 d = os.path.dirname(os.path.abspath(__file__))
 while not os.path.isfile(os.path.join(d, "run.py")):
-    parent = os.path.dirname(d)
-    if parent == d:
+    p = os.path.dirname(d)
+    if p == d:
         break
-    d = parent
+    d = p
 BASE = d
 print("Koren' proekta: " + BASE)
 
-FILES = {
 # =========================================================================
-# ФАЙЛ 1. update.sh — ispravlena proverka sluzhby (systemctl is-enabled,
-# bez pipe/grep, kotoryy vrал iz-za SIGPIPE pri pipefail).
+# ФАЙЛ 1. tools/export_history.py — generator istorii iz lokalnoy bazy.
+# Zapuskat' na WINDOWS posle kazhdogo novogo releiza, potom commit.
 # =========================================================================
-"update.sh": '''#!/usr/bin/env bash
-# ODNA KOMANDA VYKLADKI: bekap -> .env -> git pull -> zavisimosti ->
-# ustanovshchik -> restart sluzhby -> proverka HTTP.
-set -euo pipefail
-cd "$(dirname "$0")"
-PY=./venv/bin/python
-if [ ! -x "$PY" ]; then
-  echo "OSHIBKA: net venv. Sozdayte: python3 -m venv venv && ./venv/bin/python -m pip install -r requirements.txt"
-  exit 1
-fi
+os.makedirs(os.path.join(BASE, "tools"), exist_ok=True)
+EXPORT = '''"""Generiruet modules/versions/history_seed.py iz lokalnoy bazy.
+Zapuskat' na razrabotochnoy mashine (Windows) posle kazhdogo novogo releiza,
+zatem kommitit', chtoby istoriya uezzhala na servery cherez Git."""
+import os, sys, json, sqlite3
 
-echo "[1/6] Bekap bazy..."
-./backup.sh
+def root():
+    d = os.path.dirname(os.path.abspath(__file__))
+    for _ in range(4):
+        if os.path.isfile(os.path.join(d, "run.py")):
+            return d
+        p = os.path.dirname(d)
+        if p == d:
+            break
+        d = p
+    return os.path.dirname(os.path.abspath(__file__))
 
-echo "[2/6] Fayl .env..."
-if [ ! -f .env ]; then
-  cp .env.example .env
-  KEY=$($PY -c "import secrets; print(secrets.token_hex(32))")
-  sed -i "s|^APP_SECRET_KEY=.*|APP_SECRET_KEY=${KEY}|" .env
-  echo "  sozdan .env so sluchaynym sekretnym klyuchom"
-else
-  echo "  .env uzhe est, ne trogaem"
-fi
+TEMPLATE = """# AVTOGENERACIYA: polnaya istoriya relizov i zhurnala izmeneniy.
+# VRUCHNUYU NE PRAVIT'. Regeneraciya: python tools/export_history.py
+import json as _json
+from datetime import datetime as _dt
 
-echo "[3/6] git pull..."
-git pull --ff-only
+_RAW = \'\'\'{raw}\'\'\'
+_DATA = _json.loads(_RAW)
 
-echo "[4/6] Zavisimosti..."
-$PY -m pip install -q -r requirements.txt
+_DATE_KEYS = ("released_at", "created_at", "updated_at", "ts")
 
-echo "[5/6] Ustanovshchik (esli prishel novyy)..."
-if [ -f tools/installers/install.py ]; then
-  cp tools/installers/install.py ./install.py
-  $PY install.py < /dev/null
-else
-  echo "  novogo ustanovshchika net, propusk"
-fi
 
-echo "[6/6] Perezaпуск sluzhby..."
-if systemctl is-enabled modular-app >/dev/null 2>&1; then
-  sudo systemctl restart modular-app
-  sleep 3
-  echo "  sluzhba: $(systemctl is-active modular-app)"
-else
-  echo "  sluzhba eshe ne ustanovlena."
-  echo "  Postavte odin raz: ./deploy/install-service.sh"
-fi
+def _date(v):
+    if not isinstance(v, str) or not v:
+        return None
+    try:
+        return _dt.fromisoformat(v.replace(" ", "T"))
+    except Exception:
+        return None
 
-PORT=$($PY -c "import config; print(config.PORT)")
-echo "Proverka HTTP na portu ${PORT}:"
-curl -sS -o /dev/null -w "  HTTP %{http_code}\\n" "http://127.0.0.1:${PORT}/" || echo "  server ne otvetil"
-echo "Gotovo."
-''',
-# =========================================================================
-# ФАЙЛ 2. sync_121.py — tot zhe, chto byl na Windows: primeniт na servere
-# releiz 0.12.1 i zapisi zhurnala (bazы Windows i VM srovnyayutsya).
-# =========================================================================
-"sync_121.py": '''"""Sinhronizaciya dokumentacii: test obnovleniya (0.12.1)."""
-import sys, os
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from datetime import datetime
-from core.app import create_app, db
 
-CHANGELOG_BATCH = [
-("added", "test_update", "\u0422\u0435\u0441\u0442\u043e\u0432\u044b\u0439 \u043c\u043e\u0434\u0443\u043b\u044c \u0434\u043b\u044f \u043f\u0440\u043e\u0432\u0435\u0440\u043a\u0438 \u043f\u0440\u043e\u0446\u0435\u0441\u0441\u0430 \u043e\u0431\u043d\u043e\u0432\u043b\u0435\u043d\u0438\u044f \u0447\u0435\u0440\u0435\u0437 \u0443\u0441\u0442\u0430\u043d\u043e\u0432\u0449\u0438\u043a."),
-("changed", "web", "\u0422\u0435\u0441\u0442\u043e\u0432\u0430\u044f \u043c\u0435\u0442\u043a\u0430 [TEST-UPDATE] \u0432 \u0437\u0430\u0433\u043e\u043b\u043e\u0432\u043a\u0435 \u0441\u0442\u0440\u0430\u043d\u0438\u0446 \u0434\u043b\u044f \u043f\u0440\u043e\u0432\u0435\u0440\u043a\u0438 \u043e\u0431\u043d\u043e\u0432\u043b\u0435\u043d\u0438\u044f."),
-]
-
-def sync():
-    from modules.changelog.models import ChangelogEntry
+def apply():
+    """Dobavlyaet v bazu tolko NEDOSTAYUSHCHIE relizy i zapisi zhurnala."""
+    from core.app import db
     from modules.versions.models import Release
-    from modules.settings.models import Setting
-
-    marker = db.session.get(Setting, "docs_sync_v121")
-    if marker is None or marker.value != "1":
-        for typ, mod, desc in CHANGELOG_BATCH:
-            db.session.add(ChangelogEntry(author="\u0441\u0438\u043d\u0445\u0440\u043e\u043d\u0438\u0437\u0430\u0446\u0438\u044f \u0434\u043e\u043a\u0443\u043c\u0435\u043d\u0442\u0430\u0446\u0438\u0438",
-                                          change_type=typ, module=mod, description=desc))
-        db.session.add(Setting(key="docs_sync_v121", value="1"))
+    from modules.changelog.models import ChangelogEntry
+    cols_r = set(Release.__table__.columns.keys())
+    cols_c = set(ChangelogEntry.__table__.columns.keys())
+    have_r = {r.version for r in Release.query.all()}
+    added_r = 0
+    for rec in _DATA["releases"]:
+        if rec.get("version") in have_r:
+            continue
+        kw = {k: (_date(v) if k in _DATE_KEYS else v)
+              for k, v in rec.items() if k in cols_r and k not in ("id", "is_current")}
+        kw["is_current"] = False
+        db.session.add(Release(**kw))
+        added_r += 1
+    have_c = {(c.module, c.description) for c in ChangelogEntry.query.all()}
+    added_c = 0
+    for rec in _DATA["changelog"]:
+        if (rec.get("module"), rec.get("description")) in have_c:
+            continue
+        kw = {k: (_date(v) if k in _DATE_KEYS else v)
+              for k, v in rec.items() if k in cols_c and k not in ("id",)}
+        db.session.add(ChangelogEntry(**kw))
+        added_c += 1
+    if added_r or added_c:
+        if not Release.query.filter_by(is_current=True).first():
+            top = Release.query.order_by(Release.id.desc()).first()
+            if top:
+                top.is_current = True
         db.session.commit()
-        print("  changelog: zapisey dobavleno = %d" % len(CHANGELOG_BATCH))
-    else:
-        print("  changelog: partiya 0.12.1 uzhe byla, propusk")
+    return added_r, added_c
+"""
 
-    if not Release.query.filter_by(version="0.12.1").first():
-        Release.query.update({"is_current": False})
-        db.session.add(Release(version="0.12.1",
-            title="\u0422\u0435\u0441\u0442 \u043e\u0431\u043d\u043e\u0432\u043b\u0435\u043d\u0438\u044f",
-            notes="\u041f\u0440\u043e\u0432\u0435\u0440\u043a\u0430 \u043f\u0440\u043e\u0446\u0435\u0441\u0441\u0430 \u043e\u0431\u043d\u043e\u0432\u043b\u0435\u043d\u0438\u044f \u0447\u0435\u0440\u0435\u0437 \u0443\u0441\u0442\u0430\u043d\u043e\u0432\u0449\u0438\u043a: \u0442\u0435\u0441\u0442\u043e\u0432\u044b\u0439 \u043c\u043e\u0434\u0443\u043b\u044c test_update, \u043c\u0435\u0442\u043a\u0430 \u0432 \u0437\u0430\u0433\u043e\u043b\u043e\u0432\u043a\u0435.",
-            status="released", is_current=True))
-        db.session.commit()
-        print("  versions: releiz 0.12.1 sozdan i pomachen tekushchim")
-    else:
-        print("  versions: releiz 0.12.1 uzhe est")
+
+def generate():
+    base = root()
+    dbp = os.path.join(base, "data", "database.db")
+    if not os.path.isfile(dbp):
+        print("NET bazy: " + dbp)
+        return False
+    con = sqlite3.connect(dbp)
+    con.row_factory = sqlite3.Row
+    rels = [dict(r) for r in con.execute("SELECT * FROM release ORDER BY id")]
+    chs = [dict(r) for r in con.execute("SELECT * FROM changelog_entry ORDER BY id")]
+    con.close()
+    for r in rels:
+        r.pop("id", None)
+        r.pop("is_current", None)
+    for c in chs:
+        c.pop("id", None)
+    raw = json.dumps({"releases": rels, "changelog": chs}, ensure_ascii=False)
+    out = TEMPLATE.replace("{raw}", raw)
+    path = os.path.join(base, "modules", "versions", "history_seed.py")
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w", encoding="utf-8", newline="\\n") as f:
+        f.write(out)
+    print("  history_seed.py: relizov = %d, zapisey zhurnala = %d" % (len(rels), len(chs)))
+    return True
+
 
 if __name__ == "__main__":
-    app = create_app()
-    with app.app_context():
-        sync()
-    print("Sinhronizaciya 0.12.1 zavershena.")
-''',
-}
+    generate()
+'''
+with open(os.path.join(BASE, "tools", "export_history.py"), "w", encoding="utf-8", newline="\n") as f:
+    f.write(EXPORT)
+print("  + tools/export_history.py")
 
-print("Kladu faily...")
-print("")
-n = 0
-for rel, content in FILES.items():
-    full = os.path.join(BASE, *rel.split("/"))
-    d2 = os.path.dirname(full)
-    if d2:
-        os.makedirs(d2, exist_ok=True)
-    nl = "\n" if rel.endswith(".sh") else None
-    with open(full, "w", encoding="utf-8", newline=nl) as f:
-        f.write(content)
-    print("  + " + rel)
-    n += 1
+# =========================================================================
+# Shag 2. Sgenerirovat' history_seed.py iz etoy (Windows) bazy, esli ego net
+# =========================================================================
+sys.path.insert(0, os.path.join(BASE, "tools"))
+import export_history as EH
 
-print("")
-print("Zapuskayu sinhronizaciyu 0.12.1 (na etoy mashine)...")
-print("-" * 50)
-proc = subprocess.run([sys.executable, os.path.join(BASE, "sync_121.py")], cwd=BASE)
-print("-" * 50)
-if proc.returncode == 0:
-    print("")
-    print("=" * 56)
-    print("MARKER_END: update.sh ispravlen, sync 0.12.1 v komplekte")
-    print("=" * 56)
+hs = os.path.join(BASE, "modules", "versions", "history_seed.py")
+if not os.path.exists(hs):
+    print("Generiruyu istoriyu iz lokalnoy bazy...")
+    EH.generate()
 else:
-    print("")
-    print("=" * 56)
-    print("MARKER_END: sinhronizaciya upala, sm. vyshe")
-    print("=" * 56)
-print("Dal'she: Commit + Push, potom na VM: ./update.sh")
+    print("  = history_seed.py uzhe est, ne regeneriruyu")
+
+# =========================================================================
+# Shag 3. Patch core/app.py: primenyat' istoriyu pri kazhdom starte
+# =========================================================================
+p = os.path.join(BASE, "core", "app.py")
+src = open(p, encoding="utf-8").read()
+if "history_seed" not in src:
+    old = "        run_seed()\n"
+    new = old + (
+        "        try:\n"
+        "            from modules.versions import history_seed as _hs\n"
+        "            _r, _c = _hs.apply()\n"
+        "            if _r or _c:\n"
+        "                print(\"  ISTORIYA: dobavleno relizov %d, zapisey zhurnala %d\" % (_r, _c))\n"
+        "        except Exception as _e:\n"
+        "            print(\"PREDUPREZHDENIE: istoriya relizov ne primenena: %s\" % _e)\n"
+    )
+    if old in src:
+        src = src.replace(old, new, 1)
+        open(p, "w", encoding="utf-8", newline="\n").write(src)
+        print("  ~ core/app.py: istoriya primenyaetsya pri kazhdom starte")
+    else:
+        print("  ! core/app.py: yakor 'run_seed()' ne naiden, patch vruchnuyu")
+else:
+    print("  = core/app.py: patch istorii uzhe stoit")
+
+# =========================================================================
+# Shag 4. Primenit' istoriyu k etoy baze srazu
+# =========================================================================
+print("")
+print("Primenyayu istoriyu k lokalnoy baze...")
+print("-" * 50)
+proc = subprocess.run([sys.executable, "-c",
+                       "import sys; sys.path.insert(0,'.'); from core.app import create_app; create_app()"],
+                      cwd=BASE)
+print("-" * 50)
+print("")
+print("=" * 56)
+print("MARKER_END: istoriya versiy stala chast'yu koda")
+print("=" * 56)
+print("Commit + Push: core/app.py, modules/versions/history_seed.py,")
+print("               tools/export_history.py, tools/installers/install.py")
+print("Zatem na VM: ./update.sh  (istoriya dozbetsya sama pri starte sluzhby)")
 input("Najmi Enter, aby zakryt okno...")
