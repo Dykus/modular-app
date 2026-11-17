@@ -46,6 +46,12 @@ def create_app():
         from core.seed import run_seed
         run_seed()
         try:
+            from modules.versions import docs_seed as _ds
+            _h, _m = _ds.apply()
+            print("  ДОКУМЕНТАЦИЯ: статей справки %d, разделов руководства %d" % (_h, _m))
+        except Exception as _e:
+            print("PREDUPREZHDENIE: документация не применена: %s" % _e)
+        try:
             from modules.versions import history_seed as _hs
             _r, _c = _hs.apply()
             if _r or _c:
