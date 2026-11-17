@@ -4,7 +4,7 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_login import current_user
 import os, json, importlib
 import config
-from core.registry import AVAILABLE_MODULES
+from core.registry import AVAILABLE_MODULES, SYSTEM_MODULE_KEYS
 from core.auth import login_manager, user_has_perm, user_perm_codes
 from core.permissions import collect, MODULE_PERMS
 
@@ -26,21 +26,25 @@ def create_app():
 
     collect()
 
-    # import modeley VSEx moduley (vkluchaya storonnie s pasportom)
-    for m in AVAILABLE_MODULES:
+    # VAZHNO (fiks chistogo starta): modeli SISTEMNYH moduley (settings)
+    # tozhe importiruyutsya DO create_all. Inache na pustoy baze net
+    # tablic setting/setting_log, i seed.py padaet s "no such table: setting".
+    model_keys = [m["key"] for m in AVAILABLE_MODULES] + list(SYSTEM_MODULE_KEYS)
+    for key in model_keys:
         try:
-            importlib.import_module("modules.%s.models" % m["key"])
+            importlib.import_module("modules.%s.models" % key)
         except ModuleNotFoundError:
             pass
         except Exception as e:
-            print("PREDUPREZHDENIE: models modulya %s ne zagruzilis: %s" % (m["key"], e))
+            print("PREDUPREZHDENIE: models modulya %s ne zagruzilis: %s" % (key, e))
     from core import models as core_models  # noqa
+    # dvoynaya strahovka: settings vsegda do create_all, dazhe esli reestr izmenitsya
+    from modules.settings import models as settings_models  # noqa
 
     with app.app_context():
         db.create_all()
         from core.seed import run_seed
         run_seed()
-        # zasevka kazhdogo modulya, esli u nego est seed()
         for m in AVAILABLE_MODULES:
             try:
                 mod = importlib.import_module("modules.%s.models" % m["key"])
@@ -56,7 +60,6 @@ def create_app():
             except Exception:
                 enabled = {m["key"] for m in AVAILABLE_MODULES}
         else:
-            # bez sohranennogo spiska: bazovye vklyucheny, storonnie - po default_enabled
             enabled = set()
             for m in AVAILABLE_MODULES:
                 pas = m.get("passport")
@@ -82,7 +85,7 @@ def create_app():
                 registered[m["key"]] = m
             except Exception as e:
                 print("PREDUPREZHDENIE: modul %s NE zaregistrirovan (bitoy kod?): %s" % (m["key"], e))
-                print("  Programma prodolžaet rabotat bez nego. Isprav modul i perezapusti.")
+                print("  Programma prodolzhaet rabotat bez nego. Isprav modul i perezapusti.")
     app.config["ENABLED_MODULES"] = registered
 
     @app.errorhandler(403)
@@ -109,17 +112,32 @@ def create_app():
         from modules.versions.models import Release
         em = app.config.get("ENABLED_MODULES", {})
         auth_on = app.config.get("AUTH_ENABLED", False)
-        if not auth_on:
-            menu = [{"name": v["name"], "url": url_for(v["endpoint"])} for v in em.values()]
-        elif not current_user.is_authenticated:
+
+        # ustoychivoe menyu: esli endpoint ne stroitsya - punkt propuskaetsya
+        # s preduprezhdeniem, a ne valit vse stranicy sayta (BuildError).
+        def _safe_url(name, endpoint):
+            try:
+                return url_for(endpoint)
+            except Exception as e:
+                print("MENU: propusk punkta '%s' (endpoint '%s' ne stroitsya: %s)" % (name, endpoint, e))
+                return None
+
+        menu = []
+        if auth_on and not current_user.is_authenticated:
             menu = []
         else:
-            codes = user_perm_codes(current_user)
-            menu = []
+            codes = None
+            if auth_on and current_user.is_authenticated:
+                codes = user_perm_codes(current_user)
             for v in em.values():
-                need = MODULE_PERMS.get(v["key"], [])
-                if codes is None or (need and (set(need) & codes)):
-                    menu.append({"name": v["name"], "url": url_for(v["endpoint"])})
+                if auth_on:
+                    need = MODULE_PERMS.get(v["key"], [])
+                    if not (codes is None or (need and (set(need) & codes))):
+                        continue
+                u = _safe_url(v["name"], v["endpoint"])
+                if u:
+                    menu.append({"name": v["name"], "url": u})
+
         cur = Release.query.filter_by(is_current=True).first()
         def can(code):
             return user_has_perm(current_user._get_current_object() if current_user.is_authenticated else None, code)
