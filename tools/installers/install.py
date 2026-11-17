@@ -1,4 +1,4 @@
-import os, subprocess, sys
+import os, sys
 
 d = os.path.dirname(os.path.abspath(__file__))
 while not os.path.isfile(os.path.join(d, "run.py")):
@@ -10,307 +10,104 @@ BASE = d
 print("Корень проекта: " + BASE)
 
 # =========================================================================
-# ФАЙЛ 1. modules/versions/history_seed.py — СТАТИЧЕСКИЙ, из Git.
-# Собран из присланных sync-скриптов. Не генерируется из базы, одинаков
-# на Windows/Linux. apply() доливает только недостающее.
+# ПАТЧ 1. routes.py — сортировка по номеру версии, а не по id/дате.
 # =========================================================================
-os.makedirs(os.path.join(BASE, "modules", "versions"), exist_ok=True)
-HISTORY = '''# ИСТОРИЯ ВЕРСИЙ И ЖУРНАЛА ИЗМЕНЕНИЙ — СТАТИЧЕСКИЙ КОД В GIT.
-# Источник: sync-скрипты 0.6.0-0.12.5. НЕ генерируется из базы данных,
-# поэтому одинаков на любой ОС (Windows/Linux/малina). Любой новый сервер
-# получает полную историю при первом же старте.
-#
-# ДОБАВЛЕНИЕ НОВОЙ ВЕРСИИ: допиши объект в RELEASES и записи в CHANGELOG
-# (или положи новый sync-скрипт и извлеки данные). apply() идемпотентен:
-# существующее не перезаписывает, доливает только отсутствующее.
-from datetime import datetime as _dt
+rp = os.path.join(BASE, "modules", "versions", "routes.py")
+src = open(rp, encoding="utf-8").read()
+changed = False
 
-_DATE_KEYS = ("released_at", "release_date", "date", "created_at", "updated_at", "ts")
+HELPER = '''
 
-
-def _date(v):
-    if not isinstance(v, str) or not v:
-        return None
-    try:
-        return _dt.fromisoformat(v.replace(" ", "T"))
-    except Exception:
-        return None
+def _ver_key(v):
+    # "0.12.7" -> (0, 12, 7); нечисловые хвосты -> 0. Не зависит от ОС и БД.
+    parts = []
+    for chunk in (v or "0").split("."):
+        num = "".join(ch for ch in chunk if ch.isdigit())
+        parts.append(int(num) if num else 0)
+    while len(parts) < 3:
+        parts.append(0)
+    return tuple(parts[:3])
 
 
-# --- РЕЛИЗЫ (версия, заголовок, что вошло, дата) ---
-RELEASES = [
-{"version": "0.6.0", "release_date": "2026-10-31", "status": "released",
- "title": "Авторизация, роли, пользователи, руководство",
- "notes": "Вход и пароли (хеш), роли и права с человеческими описаниями, экраны «Роли» и «Пользователи», журнал входов и аудит, блокировка подбора пароля, safety-switch, модуль «Руководство» с печатью, регламент документации."},
-{"version": "0.7.0", "release_date": "2026-10-31", "status": "released",
- "title": "Хотелки: адресат и приватность",
- "notes": "Поля «Кто» и «Кому» с выпадающими списками пользователей (свободный ввод, если человека нет в списке); приватные записи, видимые только автору, адресату и админу; переключение видимости."},
-{"version": "0.8.0", "release_date": "2026-10-31", "status": "released",
- "title": "Active Directory",
- "notes": "Вход доменными учётками с graceful-degradation, авто-provisioning с ролью по умолчанию, кнопка проверки связи из настроек, источник входа в журналах и профиле."},
-{"version": "0.8.1", "release_date": "2026-10-31", "status": "released",
- "title": "Понятный журнал настроек",
- "notes": "Ключи и значения в журнале изменений настроек отображаются по-русски: названия настроек, включено/выключено, список модулей именами, темы и режимы защиты AD."},
-{"version": "0.8.2", "release_date": "2026-10-31", "status": "released",
- "title": "Справка о совместимости",
- "notes": "В руководстве и справке появился раздел о совместимости простыми словами: какие ОС подходят для сервера, почему XP и Server 2003 не подходят, какие браузеры работают, что делать со старыми компьютерами."},
-{"version": "0.9.0", "release_date": "2026-10-31", "status": "released",
- "title": "Plug-and-play модули",
- "notes": "Автопоиск модулей по паспорту module.json, шаблон modules/_template, безопасная регистрация сторонних модулей (битой модуль не роняет систему), версия и автор модуля в Настройках."},
-{"version": "0.9.1", "release_date": "2026-11-01", "status": "released",
- "title": "Устойчивое меню",
- "notes": "Меню больше не падает, если у какого-то модуля не найден endpoint: такой пункт пропускается с предупреждением в консоли, остальные страницы работают."},
-{"version": "0.9.2", "release_date": "2026-11-01", "status": "released",
- "title": "Корзина в модуле «Производство»",
- "notes": "Удалённые задачи перемещаются в корзину и хранятся 30 дней: можно восстановить или удалить навсегда. Автоочистка просроченных записей при открытии корзины."},
-{"version": "0.10.0", "release_date": "2026-11-01", "status": "released",
- "title": "Конструктор таблиц",
- "notes": "Модуль «Таблицы»: свои таблицы-вкладки, колонки с типами, формулы-конструктор (арифметика, склейка, дни, ЕСЛИ, ссылки между таблицами), матрица прав «роль × колонка», история по клеткам, корзина на 30 дней, счётчики-карточки."},
-{"version": "0.10.1", "release_date": "2026-11-01", "status": "released",
- "title": "Импорт Excel и русский конструктор",
- "notes": "В конструктор таблиц добавлен импорт .xlsx с сопоставлением колонок по заголовкам; типы колонок и формы полностью на русском."},
-{"version": "0.11.0", "release_date": "2026-11-17", "status": "released",
- "title": "Inline-редактирование + привязка к модулям",
- "notes": "Конструктор таблиц: клик по своей клетке для быстрой правки (AJAX, без перезагрузки), цветовое различение своих/чужих/вычисляемых колонок, подсветка строк, изменённых за последние 5 минут, и поле module_key — таблица из конструктора становится вкладкой внутри выбранного модуля."},
-{"version": "0.11.1", "release_date": "2026-11-17", "status": "released",
- "title": "Фикс чистого старта",
- "notes": "Приложение снова запускается на пустой базе: таблицы настроек создаются до засевки. Меню больше не падает из-за одного битого адреса модуля."},
-{"version": "0.12.0", "release_date": "2026-11-17", "status": "released",
- "title": "Серверный пакет",
- "notes": "Работа на отдельном сервере: настройки в .env, отладка выключена, фиксированный порт, waitress, служба systemd, выкладка одной командой update.sh, автобэкапы."},
-{"version": "0.12.1", "release_date": "2026-11-17", "status": "released",
- "title": "Тест обновления",
- "notes": "Проверка процесса обновления через установщик: тестовый модуль test_update, метка в заголовке."},
-{"version": "0.12.2", "release_date": "2026-11-17", "status": "released",
- "title": "Полная история версий",
- "notes": "История релизов и журнала изменений стала частью кода: применяется при каждом старте. Любая новая установка (VM, малina) получает полную и одинаковую историю с первого запуска."},
-{"version": "0.12.3", "release_date": "2026-11-17", "status": "released",
- "title": "Русский update.sh + принудительная история",
- "notes": "Скрипт update.sh полностью переписан по-русски. Добавлен отдельный шаг принудительного применения истории версий."},
-{"version": "0.12.4", "release_date": "2026-11-17", "status": "released",
- "title": "Исправление генерации истории",
- "notes": "Генератор истории запускается только на разработочной машине (Windows), где полная база. На сервере история берётся готовой из Git."},
-{"version": "0.12.5", "release_date": "2026-11-17", "status": "released",
- "title": "Полная история версий на сервере",
- "notes": "История релизов и журнала наконец применяется полностью на сервере: колонка «date» добавлена в список дат, транзакции разделены — autoflush больше не ломает сессию."},
-]
-
-# --- ЖУРНАЛ ИЗМЕНЕНИЙ (тип, модуль, описание, дата релиза) ---
-_A = "синхронизация документации"
-CHANGELOG = [
-# 0.6.0
-{"date": "2026-10-31", "author": _A, "change_type": "added", "module": "core", "ticket": "", "description": "Авторизация: вход и выход, профиль, принудительная смена пароля, блокировка после неудачных попыток, журнал входов, safety-switch."},
-{"date": "2026-10-31", "author": _A, "change_type": "added", "module": "core", "ticket": "", "description": "Реестр прав: модули объявляют права в perms.py; страница отказа 403 объясняет, какого права не хватает и что оно даёт."},
-{"date": "2026-10-31", "author": _A, "change_type": "added", "module": "core", "ticket": "", "description": "Замки прав на всех страницах модулей: прямая ссылка без права даёт понятный отказ, а не чужие данные."},
-{"date": "2026-10-31", "author": _A, "change_type": "added", "module": "core", "ticket": "", "description": "Экран «Роли»: создание ролей галочками прав с описаниями, защищённые права admin, защиты от самоблокировки."},
-{"date": "2026-10-31", "author": _A, "change_type": "added", "module": "core", "ticket": "", "description": "Экран «Пользователи»: создание, назначение ролей, блокировка, сброс пароля, аудит действий над людьми."},
-{"date": "2026-10-31", "author": _A, "change_type": "added", "module": "manual", "ticket": "", "description": "Модуль «Руководство»: разделы эксплуатации, версия для печати, печать без меню и кнопок, правка разделов."},
-{"date": "2026-10-31", "author": _A, "change_type": "changed", "module": "web", "ticket": "", "description": "Меню фильтруется по правам роли; текущая версия показывается в футере из базы данных."},
-{"date": "2026-10-31", "author": _A, "change_type": "changed", "module": "docs", "ticket": "", "description": "Синхронизация документации: справки обновлены под авторизацию, добавлен регламент документации."},
-# 0.7.0
-{"date": "2026-10-31", "author": _A, "change_type": "added", "module": "feedback", "ticket": "", "description": "Хотелки: поле «Кому» (адресат) с выпадающим списком пользователей и свободным вводом."},
-{"date": "2026-10-31", "author": _A, "change_type": "added", "module": "feedback", "ticket": "", "description": "Приватные хотелки: видны только автору, адресату и администратору; значок замка в списке."},
-{"date": "2026-10-31", "author": _A, "change_type": "changed", "module": "feedback", "ticket": "", "description": "Поле «Кто» теперь выпадающий список пользователей (можно вписать своё)."},
-# 0.8.0
-{"date": "2026-10-31", "author": _A, "change_type": "added", "module": "core", "ticket": "", "description": "Active Directory: провайдер входа с graceful-degradation и авто-provisioning доменных пользователей."},
-{"date": "2026-10-31", "author": _A, "change_type": "added", "module": "settings", "ticket": "", "description": "Кнопка «Проверить связь» для AD: пошаговая диагностика (библиотека, хост, TCP, TLS, bind, поиск)."},
-{"date": "2026-10-31", "author": _A, "change_type": "changed", "module": "auth", "ticket": "", "description": "Журнал входов и профиль показывают источник пароля: локальный или AD."},
-{"date": "2026-10-31", "author": _A, "change_type": "changed", "module": "auth", "ticket": "", "description": "У пользователей появился признак источника входа; доменные пароли локально не хранятся."},
-# 0.8.1
-{"date": "2026-10-31", "author": _A, "change_type": "changed", "module": "settings", "ticket": "", "description": "Журнал изменений настроек показывает названия и значения понятным русским языком; технический код ключа остаётся мелким шрифтом."},
-# 0.8.2
-{"date": "2026-10-31", "author": _A, "change_type": "added", "module": "manual", "ticket": "", "description": "Новый раздел руководства «Совместимость: какие компьютеры и браузеры подходят» — простыми словами, с частыми вопросами."},
-{"date": "2026-10-31", "author": _A, "change_type": "added", "module": "help", "ticket": "", "description": "Статья справки «Какие компьютеры и браузеры подходят» (выжимка раздела совместимости)."},
-# 0.9.0
-{"date": "2026-10-31", "author": _A, "change_type": "added", "module": "core", "ticket": "", "description": "Модули с паспортом module.json обнаруживаются автоматически: достаточно положить папку в modules/ и перезапустить сервер."},
-{"date": "2026-10-31", "author": _A, "change_type": "added", "module": "core", "ticket": "", "description": "Битой сторонний модуль больше не роняет запуск: пропускается с предупреждением, остальная система работает."},
-{"date": "2026-10-31", "author": _A, "change_type": "added", "module": "docs", "ticket": "", "description": "Шаблон модуля modules/_template и пошаговая инструкция «Как подключить новый модуль» в руководстве и справке."},
-# 0.9.1
-{"date": "2026-11-01", "author": _A, "change_type": "changed", "module": "core", "ticket": "", "description": "Меню стало устойчивым: если у модуля не найден endpoint, пункт пропускается с предупреждением в консоли, а остальные страницы работают."},
-# 0.9.2
-{"date": "2026-11-01", "author": _A, "change_type": "added", "module": "production", "ticket": "", "description": "Корзина: удалённые задачи не исчезают, а хранятся 30 дней с возможностью восстановления или удаления навсегда."},
-{"date": "2026-11-01", "author": _A, "change_type": "changed", "module": "production", "ticket": "", "description": "Кнопка «Удалить» теперь перемещает задачу в корзину вместо мгновенного уничтожения; автоочистка корзины старше 30 дней."},
-# 0.10.0
-{"date": "2026-11-01", "author": _A, "change_type": "added", "module": "tables", "ticket": "", "description": "Новый модуль «Таблицы (конструктор)»: свои таблицы-вкладки, колонки с типами, вычисляемые колонки-формулы через визуальный конструктор, ссылки между таблицами (аналог ВПР)."},
-{"date": "2026-11-01", "author": _A, "change_type": "added", "module": "tables", "ticket": "", "description": "Права на клетки: матрица «роль × колонка» (видеть/создавать/удалять/менять колонку), свои колонки ✎, чужие 🔒."},
-{"date": "2026-11-01", "author": _A, "change_type": "added", "module": "tables", "ticket": "", "description": "История изменений по клеткам, корзина строк на 30 дней с восстановлением, счётчики-карточки, резервная копия при удалении таблицы."},
-# 0.10.1
-{"date": "2026-11-01", "author": _A, "change_type": "added", "module": "tables", "ticket": "", "description": "Импорт Excel (.xlsx) в таблицу конструктора: сопоставление колонок по заголовкам, автосоздание недостающих, пропуск пустых строк, отметка в истории."},
-{"date": "2026-11-01", "author": _A, "change_type": "changed", "module": "tables", "ticket": "", "description": "Конструктор полностью по‑русски: типы колонок в списках и таблице показаны подписями; форма правки колонки подставляет сохранённую формулу."},
-# 0.11.0
-{"date": "2026-11-17", "author": _A, "change_type": "added", "module": "tables", "ticket": "", "description": "Inline-редактирование: клик по своей клетке открывает поле ввода, Enter сохраняет через AJAX без перезагрузки страницы."},
-{"date": "2026-11-17", "author": _A, "change_type": "changed", "module": "tables", "ticket": "", "description": "Цветовое различение колонок: свои ✎ белые, чужие 🔒 серые, вычисляемые ⚙ голубые."},
-{"date": "2026-11-17", "author": _A, "change_type": "added", "module": "tables", "ticket": "", "description": "Подсветка недавно изменённого: зелёная полоса слева и мягкий фон на 5 минут после правки."},
-{"date": "2026-11-17", "author": _A, "change_type": "added", "module": "tables", "ticket": "", "description": "Привязка таблицы к модулю (module_key): таблица из конструктора становится вкладкой внутри выбранного модуля."},
-# 0.11.1
-{"date": "2026-11-17", "author": _A, "change_type": "fixed", "module": "core", "ticket": "", "description": "Чистый старт: модели системного модуля «Настройки» импортируются до create_all — на пустой базе таблицы setting/setting_log создаются, seed не падает."},
-{"date": "2026-11-17", "author": _A, "change_type": "changed", "module": "core", "ticket": "", "description": "Меню устойчиво к битым endpoint: пункт пропускается с предупреждением в консоли вместо падения всех страниц."},
-# 0.12.0
-{"date": "2026-11-17", "author": _A, "change_type": "added", "module": "core", "ticket": "", "description": "Серверный режим: настройки через .env, отладка выключена, порт фиксированный, WSGI-сервер waitress."},
-{"date": "2026-11-17", "author": _A, "change_type": "added", "module": "deploy", "ticket": "", "description": "Служба systemd и скрипт её установки: автозапуск при загрузке и подъём после сбоя."},
-{"date": "2026-11-17", "author": _A, "change_type": "added", "module": "deploy", "ticket": "", "description": "update.sh — выкладка обновления одной командой; backup.sh — горячие копии базы с хранением 14 дней."},
-{"date": "2026-11-17", "author": _A, "change_type": "changed", "module": "docs", "ticket": "", "description": "Установщики переехали в tools/installers/ — теперь они приезжают на сервер через Git вместе с кодом."},
-# 0.12.1
-{"date": "2026-11-17", "author": _A, "change_type": "added", "module": "test_update", "ticket": "", "description": "Тестовый модуль для проверки процесса обновления через установщик."},
-{"date": "2026-11-17", "author": _A, "change_type": "changed", "module": "web", "ticket": "", "description": "Тестовая метка [TEST-UPDATE] в заголовке страниц для проверки обновления."},
-# 0.12.2
-{"date": "2026-11-17", "author": _A, "change_type": "added", "module": "versions", "ticket": "", "description": "Полная история релизов и журнала изменений стала частью кода: применяется при каждом старте приложения. Любая новая машина (VM, малina) с первого запуска получает полную и одинаковую историю."},
-{"date": "2026-11-17", "author": _A, "change_type": "added", "module": "tools", "ticket": "", "description": "Скрипт tools/export_history.py для регенерации history_seed.py после каждого нового релиза."},
-{"date": "2026-11-17", "author": _A, "change_type": "fixed", "module": "versions", "ticket": "", "description": "Автоматическое применение истории: обработка дат (release_date) и откат сессии при ошибках."},
-{"date": "2026-11-17", "author": _A, "change_type": "removed", "module": "test_update", "ticket": "", "description": "Тестовый модуль для проверки обновления удалён после успешного теста."},
-{"date": "2026-11-17", "author": _A, "change_type": "changed", "module": "web", "ticket": "", "description": "Тестовая метка [TEST-UPDATE] убрана из заголовков страниц."},
-# 0.12.3
-{"date": "2026-11-17", "author": _A, "change_type": "changed", "module": "deploy", "ticket": "", "description": "update.sh полностью на русском языке: все шаги, сообщения и проверки читаются по-русски."},
-{"date": "2026-11-17", "author": _A, "change_type": "added", "module": "deploy", "ticket": "", "description": "Принудительное применение истории версий при каждом update.sh: история дольётся даже если автоприменение при старте не сработало."},
-{"date": "2026-11-17", "author": _A, "change_type": "fixed", "module": "versions", "ticket": "", "description": "Гарантированное применение истории: отдельный шаг в update.sh, независимый от автоприменения при старте."},
-# 0.12.4
-{"date": "2026-11-17", "author": _A, "change_type": "fixed", "module": "tools", "ticket": "", "description": "export_history.py теперь запускается ТОЛЬКО на разработочной машине (Windows), где полная база. На сервере (Linux) история берётся готовой из Git, а не генерируется из неполной локальной базы."},
-{"date": "2026-11-17", "author": _A, "change_type": "added", "module": "tools", "ticket": "", "description": "Проверка платформы: генератор истории автоматически определяет Windows/Linux и на сервере не запускается."},
-# 0.12.5
-{"date": "2026-11-17", "author": _A, "change_type": "fixed", "module": "versions", "ticket": "", "description": "История версий наконец применяется полностью: колонка «date» в таблице changelog_entry добавлена в список дат, транзакции разделены (релизы и журнал коммитятся отдельно) — autoflush больше не ломает сессию."},
-]
-
-
-def apply():
-    """Добавляет в базу только НЕДОСТАЮЩИЕ релизы и записи журнала.
-    Ничего существующего не перезаписывает. Идемпотентен."""
-    from core.app import db
-    from modules.versions.models import Release
-    from modules.changelog.models import ChangelogEntry
-    cols_r = set(Release.__table__.columns.keys())
-    cols_c = set(ChangelogEntry.__table__.columns.keys())
-
-    # РЕЛИЗЫ — отдельная транзакция.
-    have_r = {r.version for r in Release.query.all()}
-    added_r = 0
-    for rec in RELEASES:
-        if rec.get("version") in have_r:
-            continue
-        kw = {k: (_date(v) if k in _DATE_KEYS else v)
-              for k, v in rec.items() if k in cols_r and k != "id"}
-        kw.setdefault("is_current", False)
-        db.session.add(Release(**kw))
-        added_r += 1
-    if added_r:
-        try:
-            db.session.commit()
-        except Exception:
-            db.session.rollback()
-            raise
-
-    # ЖУРНАЛ — отдельная транзакция.
-    have_c = {(c.module, c.description) for c in ChangelogEntry.query.all()}
-    added_c = 0
-    for rec in CHANGELOG:
-        if (rec.get("module"), rec.get("description")) in have_c:
-            continue
-        kw = {k: (_date(v) if k in _DATE_KEYS else v)
-              for k, v in rec.items() if k in cols_c and k != "id"}
-        db.session.add(ChangelogEntry(**kw))
-        added_c += 1
-    if added_c:
-        try:
-            db.session.commit()
-        except Exception:
-            db.session.rollback()
-            raise
-
-    # Гарантируем, что хоть один релиз помечен текущим.
-    if not Release.query.filter_by(is_current=True).first():
-        top = Release.query.order_by(Release.id.desc()).first()
-        if top:
-            top.is_current = True
-            db.session.commit()
-
-    return added_r, added_c
+def _sorted_releases(rows):
+    # Наибольшая версия первая; внутри равных версий — по дате, затем по id.
+    return sorted(
+        rows,
+        key=lambda r: (_ver_key(r.version),
+                       r.release_date or datetime.min.date(),
+                       r.id),
+        reverse=True,
+    )
 '''
-with open(os.path.join(BASE, "modules", "versions", "history_seed.py"), "w", encoding="utf-8", newline="\n") as f:
-    f.write(HISTORY)
-print("  + modules/versions/history_seed.py (СТАТИЧЕСКИЙ, из Git)")
 
-# =========================================================================
-# ФАЙЛ 2. sync_126.py — документация (0.12.6): история стала статической
-# =========================================================================
-SYNC = '''"""Синхронизация документации: история версий — статический код в Git (0.12.6)."""
-import sys, os
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from datetime import datetime
-from core.app import create_app, db
-
-CHANGELOG_BATCH = [
-("changed", "versions", "История релизов и журнала изменений стала СТАТИЧЕСКИМ кодом в Git (modules/versions/history_seed.py), собранным из sync-скриптов. Больше не генерируется из базы Windows — одинакова на любой ОС, любой новый сервер получает полную историю при первом старте."),
-("removed", "tools", "tools/export_history.py удалён: генерация истории из локальной базы больше не нужна и была источником зависимости от Windows и обрезания истории на сервере."),
-]
-
-def sync():
-    from modules.changelog.models import ChangelogEntry
-    from modules.versions.models import Release
-    from modules.settings.models import Setting
-
-    marker = db.session.get(Setting, "docs_sync_v126")
-    if marker is None or marker.value != "1":
-        for typ, mod, desc in CHANGELOG_BATCH:
-            db.session.add(ChangelogEntry(author="синхронизация документации",
-                                          change_type=typ, module=mod, description=desc))
-        db.session.add(Setting(key="docs_sync_v126", value="1"))
-        db.session.commit()
-        print("  changelog: записей добавлено = %d" % len(CHANGELOG_BATCH))
+anchor_import = "from modules.versions.models import Release, STATUS_LABELS, STATUS_BADGE"
+if "_sorted_releases" not in src:
+    if anchor_import in src:
+        src = src.replace(anchor_import, anchor_import + HELPER, 1)
+        changed = True
+        print("  + routes.py: helper _sorted_releases вставлен")
     else:
-        print("  changelog: партия 0.12.6 уже была, пропуск")
+        print("  ! routes.py: якорь импорта не найден — сообщи мне")
 
-    if not Release.query.filter_by(version="0.12.6").first():
-        Release.query.update({"is_current": False})
-        db.session.add(Release(version="0.12.6",
-            title="История версий — статический код в Git",
-            notes="История релизов и журнала изменений больше не зависит от операционной системы: это статический файл modules/versions/history_seed.py в Git, собранный из sync-скриптов. Генерация из базы Windows (tools/export_history.py) удалена. Любой новый сервер — виртуалка, малina, рабочий ПК — получает полную и одинаковую историю при первом же запуске.",
-            status="released", is_current=True))
-        db.session.commit()
-        print("  versions: релиз 0.12.6 создан и помечен текущим")
-    else:
-        print("  versions: релиз 0.12.6 уже есть")
-
-if __name__ == "__main__":
-    app = create_app()
-    with app.app_context():
-        sync()
-    print("Синхронизация 0.12.6 завершена.")
-'''
-with open(os.path.join(BASE, "sync_126.py"), "w", encoding="utf-8", newline="\n") as f:
-    f.write(SYNC)
-print("  + sync_126.py")
-
-# =========================================================================
-# Шаг 3. Удалить tools/export_history.py (источник зависимости от Windows)
-# =========================================================================
-eh = os.path.join(BASE, "tools", "export_history.py")
-if os.path.exists(eh):
-    os.remove(eh)
-    print("  - tools/export_history.py (удалён: история больше не генерируется из базы)")
+old_list = "releases = Release.query.order_by(Release.release_date.desc(), Release.id.desc()).all()"
+new_list = "releases = _sorted_releases(Release.query.all())"
+if old_list in src:
+    src = src.replace(old_list, new_list, 1)
+    changed = True
+    print("  ~ routes.py: список версий сортируется по номеру")
+elif new_list in src:
+    print("  = routes.py: список уже починен")
 else:
-    print("  = tools/export_history.py уже отсутствует")
+    print("  ! routes.py: строка сортировки списка не найдена — сообщи мне")
+
+old_about = "releases = Release.query.order_by(Release.release_date.desc(), Release.id.desc()).limit(10).all()"
+new_about = "releases = _sorted_releases(Release.query.all())[:10]"
+if old_about in src:
+    src = src.replace(old_about, new_about, 1)
+    changed = True
+    print("  ~ routes.py: «последние релизы» на «О программе» тоже починены")
+elif new_about in src:
+    print("  = routes.py: «О программе» уже починена")
+else:
+    print("  ! routes.py: строка сортировки about не найдена — сообщи мне")
+
+if changed:
+    open(rp, "w", encoding="utf-8", newline="\n").write(src)
 
 # =========================================================================
-# Шаг 4. Применить историю и синхронизацию к локальной базе
+# ПАТЧ 2. history_seed.py — релиз 0.12.7 в статический файл (едет через Git).
+# Никаких sync_*.py в корне: они в .gitignore и на сервер не приедут.
 # =========================================================================
+hp = os.path.join(BASE, "modules", "versions", "history_seed.py")
+hsrc = open(hp, encoding="utf-8").read()
+if '"0.12.7"' not in hsrc:
+    rel_block = (
+        'RELEASES = [\n'
+        '{"version": "0.12.7", "release_date": "2026-11-17", "status": "released",\n'
+        ' "title": "Семантическая сортировка версий",\n'
+        ' "notes": "Список релизов и «последние релизы» на «О программе» сортируются по номеру версии (0.12.7 > 0.11.0), а не по id вставки или дате. Работает одинаково на Windows, Linux и малине — это код в Git, не генерация из базы."},\n'
+    )
+    hsrc = hsrc.replace("RELEASES = [\n", rel_block, 1)
+
+    cl_block = (
+        'CHANGELOG = [\n'
+        '{"date": "2026-11-17", "author": "синхронизация документации", "change_type": "fixed", "module": "versions", "ticket": "", "description": "Сортировка списка релизов и блока «последние релизы» переведена на семантический номер версии: порядок больше не зависит от id вставки и одинаков на любой ОС."},\n'
+        '{"date": "2026-11-17", "author": "синхронизация документации", "change_type": "added", "module": "versions", "ticket": "", "description": "Релиз 0.12.7 добавлен в статический history_seed.py — приезжает на сервер через Git, без sync-скрипта в корне."},\n'
+    )
+    hsrc = hsrc.replace("CHANGELOG = [\n", cl_block, 1)
+    open(hp, "w", encoding="utf-8", newline="\n").write(hsrc)
+    print("  + history_seed.py: релиз 0.12.7 и записи журнала дописаны (в Git)")
+else:
+    print("  = history_seed.py: 0.12.7 уже есть")
+
 print("")
-print("Применяю историю и синхронизацию к локальной базе...")
-print("-" * 50)
-proc = subprocess.run([sys.executable, os.path.join(BASE, "sync_126.py")], cwd=BASE)
-print("-" * 50)
-
-if proc.returncode == 0:
-    print("")
-    print("=" * 60)
-    print("MARKER_END: история версий — статический код в Git (0.12.6)")
-    print("=" * 60)
-    print("Commit + Push:")
-    print("  modules/versions/history_seed.py  (статический, 18 релизов + журнал)")
-    print("  sync_126.py")
-    print("  tools/export_history.py           (УДАЛЁН)")
-    print("  tools/installers/install.py")
-    print("")
-    print("Затем на VM: git pull && ./update.sh")
-    print("Сервер получит ВСЮ историю 0.6.0-0.12.6 без генерации из базы.")
-else:
-    print("")
-    print("MARKER_END: синхронизация упала, см. текст выше")
+print("=" * 60)
+print("MARKER_END: сортировка версий починена, релиз 0.12.7 в Git")
+print("=" * 60)
+print("Commit + Push:")
+print("  modules/versions/routes.py        (сортировка по номеру версии)")
+print("  modules/versions/history_seed.py  (релиз 0.12.7)")
+print("  tools/installers/install.py")
+print("")
+print("Затем на VM: ./update.sh  (git pull привезёт сортировку,")
+print("история дольёт 0.12.7, служба перезапустится)")

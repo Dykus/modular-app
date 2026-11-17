@@ -4,6 +4,28 @@ from core.auth import perm
 from datetime import datetime
 from modules.versions.models import Release, STATUS_LABELS, STATUS_BADGE
 
+def _ver_key(v):
+    # "0.12.7" -> (0, 12, 7); нечисловые хвосты -> 0. Не зависит от ОС и БД.
+    parts = []
+    for chunk in (v or "0").split("."):
+        num = "".join(ch for ch in chunk if ch.isdigit())
+        parts.append(int(num) if num else 0)
+    while len(parts) < 3:
+        parts.append(0)
+    return tuple(parts[:3])
+
+
+def _sorted_releases(rows):
+    # Наибольшая версия первая; внутри равных версий — по дате, затем по id.
+    return sorted(
+        rows,
+        key=lambda r: (_ver_key(r.version),
+                       r.release_date or datetime.min.date(),
+                       r.id),
+        reverse=True,
+    )
+
+
 versions_bp = Blueprint("versions", __name__, url_prefix="/versions", template_folder="templates")
 
 @versions_bp.route("/")
@@ -11,7 +33,7 @@ versions_bp = Blueprint("versions", __name__, url_prefix="/versions", template_f
 def list_releases():
     edit_id = request.args.get("edit", type=int)
     editing = Release.query.get(edit_id) if edit_id else None
-    releases = Release.query.order_by(Release.release_date.desc(), Release.id.desc()).all()
+    releases = _sorted_releases(Release.query.all())
     return render_template("versions/list.html", releases=releases, editing=editing,
                            statuses=STATUS_LABELS, badges=STATUS_BADGE)
 
@@ -73,5 +95,5 @@ def delete(rid):
 @perm("versions.view")
 def about():
     cur = Release.query.filter_by(is_current=True).first()
-    releases = Release.query.order_by(Release.release_date.desc(), Release.id.desc()).limit(10).all()
+    releases = _sorted_releases(Release.query.all())[:10]
     return render_template("versions/about.html", cur=cur, releases=releases, statuses=STATUS_LABELS, badges=STATUS_BADGE)
