@@ -37,10 +37,10 @@ else
 fi
 
 echo "[6/6] Perezaпуск sluzhby..."
-if systemctl list-unit-files 2>/dev/null | grep -q '^modular-app.service'; then
+if systemctl is-enabled modular-app >/dev/null 2>&1; then
   sudo systemctl restart modular-app
   sleep 3
-  systemctl is-active modular-app || true
+  echo "  sluzhba: $(systemctl is-active modular-app)"
 else
   echo "  sluzhba eshe ne ustanovlena."
   echo "  Postavte odin raz: ./deploy/install-service.sh"
