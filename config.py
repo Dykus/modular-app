@@ -1,13 +1,25 @@
-"""Konfiguraciya. Menyay znacheniyu zdes."""
+"""Konfiguraciya. Znacheniya berutsya iz .env (ili iz okruzheniya)."""
 import os
 
-# Absolyutnye puti - chtooby SQLite na Windows TOCHNO videl papku data
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.path.join(BASE_DIR, "data")
 
-# Put' k baze sobiraem ABSOLYUTNYM, pryamymi sleshami (format dlya Windows)
-DATABASE = "sqlite:///" + os.path.join(DATA_DIR, "database.db").replace("\\", "/")
+def _load_dotenv():
+    p = os.path.join(BASE_DIR, ".env")
+    if not os.path.isfile(p):
+        return
+    with open(p, encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            k, v = line.split("=", 1)
+            os.environ.setdefault(k.strip(), v.strip().strip('"').strip("'"))
 
-PORT = 5000          # esli zanato - programma vozmets sleduyushchiy svobodnyy
-HOST = "0.0.0.0"     # 0.0.0.0 = dostupno po lokalnoy seti vsem
-SECRET_KEY = "change-me-in-production"
+_load_dotenv()
+
+PORT = int(os.environ.get("APP_PORT", "5000"))
+HOST = os.environ.get("APP_HOST", "0.0.0.0")
+SECRET_KEY = os.environ.get("APP_SECRET_KEY", "change-me-in-production")
+DEBUG = os.environ.get("APP_DEBUG", "0").lower() in ("1", "true", "yes", "on")
+DATABASE = "sqlite:///" + os.path.join(DATA_DIR, "database.db").replace("\\", "/")

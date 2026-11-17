@@ -41,3 +41,5 @@ venv/
 .venv/
 env/
 ENV/
+# Servernoe
+.env
