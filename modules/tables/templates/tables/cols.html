@@ -155,4 +155,97 @@ if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded"
 <button class="btn" type="submit">Сохранить счётчики</button>
 </form>
 </div>
+<script>
+/* fprev-v2 */
+(function(){
+var SAMPLE="{{ url_for('tables.sample', tid=t.id) }}";
+var SPREFIX="{{ url_for('tables.index') }}";
+var ATABLES={ {% for x in all_tables %}{{ x.id|tojson }}:{{ x.title|tojson }},{% endfor %} };
+function boot(){
+try{
+var old=document.getElementById('fprev');
+if(old&&old.parentNode)old.parentNode.removeChild(old);
+var kind=document.querySelector('[name="kind"]');
+if(!kind||!kind.form)return;
+var form=kind.form;
+var box=document.createElement('div');box.id='fprev';box.className='fprev';box.style.display='none';
+box.innerHTML='<h3>Живой пример: что посчитает формула</h3><div class="fprev-sum" id="fprevsum"></div><div id="fprevrows"></div><div class="note" id="fprevnote">Пример пересчитывается при каждом изменении полей и НЕ сохраняется до «Сохранить колонку».</div>';
+var host=kind.closest('fieldset')||kind.closest('.form-row')||kind.parentNode;
+host.parentNode.insertBefore(box,host.nextSibling);
+var ctype=form.querySelector('[name="col_type"]');
+var sample=null,remotes={};
+function val(n){var e=form.querySelector('[name="'+n+'"]');return e?e.value:"";}
+function num(v){v=String(v==null?"":v).replace(/\s/g,"").replace(",",".");var n=parseFloat(v);return isNaN(n)?null:n;}
+function dparse(v){v=String(v||"").trim();var m=v.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);if(m)return new Date(+m[3],+m[2]-1,+m[1]);var m2=v.match(/^(\d{4})-(\d{2})-(\d{2})$/);if(m2)return new Date(+m2[1],+m2[2]-1,+m2[3]);return null;}
+function fnum(x){if(x===null||x===undefined)return "";if(x===Math.round(x))return String(x);return String(Math.round(x*100)/100);}
+function tok(t,dd){t=String(t==null?"":t).trim();if(Object.prototype.hasOwnProperty.call(dd,t))return String(dd[t]==null?"":dd[t]);return t;}
+function colTitle(k){if(sample){for(var i=0;i<sample.cols.length;i++)if(sample.cols[i].k===k)return sample.cols[i].t;}return k;}
+function isCol(k){if(sample){for(var i=0;i<sample.cols.length;i++)if(sample.cols[i].k===k)return true;}return false;}
+function lit(k){return isCol(k)?("«"+colTitle(k)+"»"):("«"+k+"» (литерал)");}
+function readF(){return {kind:val('kind'),op:val('op'),a:val('a'),b:val('b'),col:val('if_col'),if_op:val('if_op'),value:val('if_val'),then:val('then_v'),else:val('else_v'),ref_table:val('ref_table'),match_local:val('match_local'),match_remote:val('match_remote'),show:val('show')};}
+function compute(ty,f,dd,remote){
+ try{
+  if(ty==="ref"){var want=String(dd[f.match_local]==null?"":dd[f.match_local]);if(!want)return "";
+   for(var i=0;i<remote.length;i++){if(String(remote[i][f.match_remote]==null?"":remote[i][f.match_remote])===want)return String(remote[i][f.show]==null?"":remote[i][f.show]);}
+   return "";}
+  if(f.kind==="arith"){var a=num(tok(f.a,dd)),b=num(tok(f.b,dd));if(a===null||b===null)return "";var r;
+   if(f.op==="add")r=a+b;else if(f.op==="sub")r=a-b;else if(f.op==="mul")r=a*b;else if(f.op==="div"){if(b===0)return "";r=a/b;}else return "";
+   return fnum(r);}
+  if(f.kind==="concat")return (tok(f.a,dd)+" "+tok(f.b,dd)).trim();
+  if(f.kind==="days"){var da=dparse(tok(f.a,dd));var bt=String(f.b||"").trim();var db=bt?dparse(tok(bt,dd)):new Date();if(!da||!db)return "";return String(Math.round((da-db)/86400000));}
+  if(f.kind==="if"){var base=String(dd[f.col]==null?"":dd[f.col]);var vv=String(f.value||"");var op=f.if_op||f.op;var na=num(base),nv=num(vv);var ok=false;
+   if(op==="eq")ok=base===vv;else if(op==="ne")ok=base!==vv;else if(op==="contains")ok=vv&&base.indexOf(vv)>=0;else if(op==="gt")ok=(na!==null&&nv!==null&&na>nv);else if(op==="lt")ok=(na!==null&&nv!==null&&na<nv);
+   return String(ok?(f.then||""):(f.else||""));}
+  return "";
+ }catch(e){return "";}
+}
+function summary(ty,f){
+ var SYM={add:"+",sub:"−",mul:"×",div:"÷"};
+ var OW={eq:"=",ne:"≠",contains:"содержит",gt:">",lt:"<"};
+ if(ty==="ref")return 'Из таблицы «'+(ATABLES[+f.ref_table]||("№"+f.ref_table))+'»: где её «'+(f.match_remote||"?")+'» равно нашей «'+(f.match_local||"?")+'», показать «'+(f.show||"?")+'»';
+ if(f.kind==="arith")return lit(f.a)+" "+(SYM[f.op]||f.op||"?")+" "+lit(f.b);
+ if(f.kind==="concat")return "склейка: "+lit(f.a)+" + "+lit(f.b);
+ if(f.kind==="days")return "дней между "+lit(f.a)+" и "+(String(f.b||"").trim()?lit(f.b):"сегодня");
+ if(f.kind==="if")return "если «"+(f.col||"?")+"» "+(OW[f.if_op||f.op]||"?")+" «"+(f.value||"")+"» то «"+(f.then||"")+"» иначе «"+(f.else||"")+"»";
+ return "выберите вид формулы";
+}
+function ensureRemote(rt){
+ if(!rt||remotes[rt])return;
+ remotes[rt]={rows:[],cols:[]};
+ fetch(SPREFIX+rt+"/sample").then(function(r){return r.json();}).then(function(j){remotes[rt]=j;update();}).catch(function(){});
+}
+function update(){
+ var ty=ctype?ctype.value:"";
+ if(ty!=="computed"&&ty!=="ref"){box.style.display="none";return;}
+ box.style.display="";
+ if(!sample){document.getElementById('fprevnote').textContent="Загружаю строки для примера…";return;}
+ var f=readF();
+ var rt=+f.ref_table||0;
+ if(ty==="ref")ensureRemote(rt);
+ var remote=(ty==="ref"&&remotes[rt])?remotes[rt].rows:[];
+ document.getElementById('fprevsum').textContent=summary(ty,f);
+ var rows=sample.rows;
+ if(!rows.length){document.getElementById('fprevrows').innerHTML='<div class="note">Строк пока нет — пример появится с первой строкой.</div>';return;}
+ var h='<table><tr><th>Строка</th><th>Результат</th></tr>';
+ for(var i=0;i<rows.length;i++){
+  var lab=[];for(var j=0;j<Math.min(2,sample.cols.length);j++){var k=sample.cols[j].k;var v=rows[i].data[k];if(v)lab.push(String(v));}
+  h+='<tr><td>'+(lab.join(" · ")||("№"+rows[i].id))+'</td><td class="res">'+(compute(ty,f,rows[i].data,remote)||"∅")+'</td></tr>';
+ }
+ document.getElementById('fprevrows').innerHTML=h+"</table>";
+}
+fetch(SAMPLE).then(function(r){return r.json();}).then(function(j){sample=j;update();}).catch(function(){
+ box.style.display="";document.getElementById('fprevnote').textContent="Не удалось загрузить строки для примера (эндпоинт /sample).";});
+form.addEventListener("input",update);
+form.addEventListener("change",update);
+update();
+}catch(err){
+ var b2=document.createElement('div');b2.className='fprev';b2.style.display='';
+ b2.innerHTML='<div class="note" style="color:#c0392b;font-weight:600">Превью не стартовало: '+String(err&&err.message?err.message:err)+'</div>';
+ var h2=document.querySelector('[name="kind"]');
+ if(h2){var hs=h2.closest('fieldset')||h2.closest('.form-row')||h2.parentNode;hs.parentNode.insertBefore(b2,hs.nextSibling);}
+}
+}
+if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded",boot);}else{boot();}
+})();
+</script>
 {% endblock %}

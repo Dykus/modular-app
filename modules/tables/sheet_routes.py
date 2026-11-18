@@ -271,3 +271,14 @@ def sheet_views(tid):
     v = SheetView.query.filter_by(id=vid, user_id=uid).first()
     if v: db.session.delete(v); db.session.commit()
     return jsonify({"ok": True})
+
+# fsample-v1: syrye dannye pervyh strok dlya zhivogo prev'yu (tol'ko chtenie).
+@tables_bp.route("/<int:tid>/sample")
+@perm("tables.view")
+def sample(tid):
+    ensure()
+    t, m, cols, cm = meta(tid)
+    rows = TableRow.query.filter_by(table_id=tid, deleted_at=None).order_by(TableRow.id).limit(5).all()
+    return jsonify({"rows": [{"id": r.id, "data": jload(r.data, {})} for r in rows],
+                    "cols": [{"k": c.key, "t": c.title, "ty": c.col_type,
+                              "op": jload(c.options, [])} for c in cols]})

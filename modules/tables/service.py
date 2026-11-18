@@ -77,7 +77,7 @@ def compute_value(col, data, remote):
         if kind == "if":
             base = str(data.get(f.get("col"), "") or "")
             val = str(f.get("value") or "")
-            op = f.get("op")
+            op = f.get("if_op") or f.get("op")
             na, nv = num(base), num(val)
             if op == "eq": ok = base == val
             elif op == "ne": ok = base != val
