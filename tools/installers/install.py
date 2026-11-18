@@ -1,5 +1,4 @@
-import os, subprocess, sys
-from sqlalchemy import text
+import os, sys
 
 d = os.path.dirname(os.path.abspath(__file__))
 while not os.path.isfile(os.path.join(d, "run.py")):
@@ -11,81 +10,76 @@ BASE = d
 print("Корень проекта: " + BASE)
 
 # =========================================================================
-# ШАГ A. Миграция данных: у локального admin выставить must_change_password=1,
-# если он 0/NULL (колонка добавилась позже и SQLite дал 0 старым строкам).
-# Идемпотентно: повторный запуск трогает 0 строк.
+# ПРАВКА 1. core/app.py — убрать смену пароля из белого списка.
+# Страница смены пароля должна требовать входа; в белом списке ей делать нечего.
 # =========================================================================
-print("")
-print("Миграция флага смены пароля...")
-print("-" * 50)
-sys.path.insert(0, BASE)
-from core.app import create_app, db
-app = create_app()
-with app.app_context():
-    res = db.session.execute(text(
-        "UPDATE user SET must_change_password=1 "
-        "WHERE username='admin' AND (must_change_password=0 OR must_change_password IS NULL)"
-    ))
-    db.session.commit()
-    n = res.rowcount or 0
-    print("  admin: флаг выставлен, затронутых строк = %d" % n)
-    if n == 0:
-        print("  (уже был 1 — ничего не меняли; если смены всё равно нет, виновник перехват, не данные)")
-print("-" * 50)
+ap = os.path.join(BASE, "core", "app.py")
+src = open(ap, encoding="utf-8").read()
+changed_app = False
 
-# =========================================================================
-# ШАГ B. Релиз 0.12.9 + журнал — в СТАТИЧЕСКИЙ history_seed.py (едет через Git).
-# Никаких sync_*.py в корне: они в .gitignore и на сервер не приедут.
-# =========================================================================
-hp = os.path.join(BASE, "modules", "versions", "history_seed.py")
-if os.path.exists(hp):
-    hsrc = open(hp, encoding="utf-8").read()
-    if '"0.12.9"' not in hsrc:
-        rel_block = (
-            'RELEASES = [\n'
-            '{"version": "0.12.9", "release_date": "2026-11-18", "status": "released",\n'
-            ' "title": "Принудительная смена пароля работает на старых базах",\n'
-            ' "notes": "Колонка must_change_password добавлялась в модель позже, чем на мастерской/сервере уже жил admin, и SQLite подставил старым строкам 0 (False) — из-за этого система не требовала сменить пароль при первом входе, хотя код перехвата был верен. Разовая идемпотентная миграция выставляет флаг admin=1 на существующих базах; на чистых базаг seed и так ставит 1. Попутно исправлено сообщение про занятый порт (вместо %d теперь реальное число)."},\n'
-        )
-        hsrc = hsrc.replace("RELEASES = [\n", rel_block, 1)
-        cl_block = (
-            'CHANGELOG = [\n'
-            '{"date": "2026-11-18", "author": "синхронизация документации", "change_type": "fixed", "module": "core", "ticket": "", "description": "Принудительная смена пароля при первом входе заработала на существующих базах: разовая миграция выставляет must_change_password=1 для admin, которому колонка, добавленная позже модели, досталась со значением 0."},\n'
-            '{"date": "2026-11-18", "author": "синхронизация документации", "change_type": "fixed", "module": "core", "ticket": "", "description": "В сообщении про занятый порт в серверном режиме вместо литерала %d теперь подставляется реальный номер порта."},\n'
-        )
-        hsrc = hsrc.replace("CHANGELOG = [\n", cl_block, 1)
-        open(hp, "w", encoding="utf-8", newline="\n").write(hsrc)
-        print("  + history_seed.py: релиз 0.12.9 и 2 записи журнала дописаны (в Git)")
-    else:
-        print("  = history_seed.py: 0.12.9 уже есть")
-else:
-    print("  ! history_seed.py не найден — сначала примени установщик 0.12.6+")
-
-# =========================================================================
-# ШАГ C. Мелкий фикс run.py: %d -> реальное число порта (f-строка).
-# =========================================================================
-rp = os.path.join(BASE, "run.py")
-if os.path.exists(rp):
-    src = open(rp, encoding="utf-8").read()
-    old = '"OSHIBKA: port %d zanat. Osvobodite ego ili izmenite APP_PORT v .env"'
-    new = 'f"OSHIBKA: port {config.PORT} zanat. Osvobodite ego ili izmenite APP_PORT v .env"'
+if '"auth.change_password"' in src:
+    # основной якорь (две записи одной строкой, как в findstr)
+    old = '"auth.change_password", "auth.do_change_password", "static"}'
+    new = '"static"}'
     if old in src:
         src = src.replace(old, new, 1)
-        open(rp, "w", encoding="utf-8", newline="\n").write(src)
-        print("  ~ run.py: сообщение про занятый порт починено (%d -> число)")
-    elif new in src:
-        print("  = run.py: сообщение уже починено")
+        changed_app = True
+        print("  ~ core/app.py: смена пароля убрана из AUTH_WHITELIST (якорь 1)")
     else:
-        print("  ! run.py: строка про порт не найдена — не страшно, это косметика")
+        # запасной якорь: убрать две записи с хвостовой запятой
+        old2 = '"auth.change_password", "auth.do_change_password", '
+        if old2 in src:
+            src = src.replace(old2, "", 1)
+            changed_app = True
+            print("  ~ core/app.py: смена пароля убрана из AUTH_WHITELIST (якорь 2)")
+        else:
+            print("  ! core/app.py: записи смены пароля найдены, но якорь не совпал — пришли мне строки 10-20")
+else:
+    print("  = core/app.py: смены пароля в белом списке уже нет")
+
+if changed_app:
+    open(ap, "w", encoding="utf-8", newline="\n").write(src)
+
+# =========================================================================
+# ПРАВКА 2. core/auth_routes.py — @login_required на GET change_password.
+# Вставляем декоратор непосредственно перед def change_password():,
+# если его там ещё нет (идемпотентно). Стиль как у POST-версии.
+# =========================================================================
+arp = os.path.join(BASE, "core", "auth_routes.py")
+asrc = open(arp, encoding="utf-8").read()
+eol = "\r\n" if "\r\n" in asrc else "\n"
+lines = asrc.splitlines()
+target = None
+for i, ln in enumerate(lines):
+    if ln.strip() == "def change_password():":
+        target = i
+        break
+
+if target is None:
+    print("  ! core/auth_routes.py: def change_password(): не найден — пришли мне строки 190-215")
+else:
+    # есть ли @login_required в двух строках выше?
+    has_lr = any("login_required" in lines[j].strip()
+                 for j in range(max(0, target - 2), target))
+    if has_lr:
+        print("  = core/auth_routes.py: @login_required на GET change_password уже есть")
+    else:
+        lines.insert(target, "@login_required")
+        out = eol.join(lines)
+        if asrc.endswith(eol):
+            out += eol
+        open(arp, "w", encoding="utf-8", newline="\n").write(out)
+        print("  ~ core/auth_routes.py: @login_required добавлен на GET change_password")
 
 print("")
 print("=" * 60)
-print("MARKER_END: миграция флага + релиз 0.12.9 в Git")
+print("MARKER_END: страница смены пароля защищена от гостей")
 print("=" * 60)
 print("Commit + Push:")
-print("  modules/versions/history_seed.py   (релиз 0.12.9)")
-print("  run.py                             (фикс %d)")
+print("  core/app.py          (смена пароля убрана из белого списка)")
+print("  core/auth_routes.py  (@login_required на GET смены пароля)")
 print("  tools/installers/install.py")
-print("(миграция флага уже применена к ЭТОЙ базе прямо сейчас)")
 print("")
-print("Затем на VM: ./update.sh  (привезёт релиз и применит миграцию к боевой базе)")
+print("Затем на VM: ./update.sh")
+print("ПОСЛЕ этого — тест: инкогнито, войти как admin, смотреть, кидает ли на смену.")
+print("Релиз 0.12.9 добавлю отдельным шагом, когда тест подтвердит фикс.")

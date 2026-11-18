@@ -193,6 +193,7 @@ def profile():
     return render_template("auth/profile.html")
 
 @auth_bp.route("/change-password", methods=["GET"])
+@login_required
 def change_password():
     # U AD-polzovateley smena parolya - v samom AD, ne u nas
     if current_user.auth_source == "ad":

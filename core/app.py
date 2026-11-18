@@ -11,7 +11,7 @@ from core.permissions import collect, MODULE_PERMS
 db = SQLAlchemy()
 
 AUTH_WHITELIST = {"auth.login", "auth.do_login", "auth.logout",
-                  "auth.change_password", "auth.do_change_password", "static"}
+                  "static"}
 
 def create_app():
     app = Flask(__name__,
