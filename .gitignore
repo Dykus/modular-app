@@ -43,3 +43,5 @@ env/
 ENV/
 # Servernoe
 .env
+_diag_*.txt
+tools/diag_*.py
