@@ -35,3 +35,10 @@ body.dark footer{ color:#9aa3b2 !important; }
 body.dark .tscroll::-webkit-scrollbar-thumb{background:#3a3f4b}
 body.dark .tscroll::-webkit-scrollbar-thumb:hover{background:#4a5060}
 body.dark .tscroll::-webkit-scrollbar-track{background:#1a1d24}
+/* tables-head-v2-dark */
+body.dark .tb-tabs{background:rgba(142,162,255,.08);border-color:#3a3f4b}
+body.dark .tb-tab{color:#9aa3b2}
+body.dark .tb-tab:hover{background:#23262e;color:#e7eaf0}
+body.dark .tb-tab.on{background:#8ea2ff;color:#15171c}
+body.dark .tb-tab.tswitch{border-color:#4a5060;color:#c4ccd8}
+body.dark .tb-tab.tswitch:hover{background:#23262e}
