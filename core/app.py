@@ -50,6 +50,7 @@ def create_app():
             _h, _m = _ds.apply()
             print("  ДОКУМЕНТАЦИЯ: статей справки %d, разделов руководства %d" % (_h, _m), flush=True)
         except Exception as _e:
+            db.session.rollback()
             print("PREDUPREZHDENIE: документация не применена: %s" % _e, flush=True)
         try:
             from modules.versions import history_seed as _hs
@@ -57,6 +58,7 @@ def create_app():
             if _r or _c:
                 print("  ISTORIYA: dobavleno relizov %d, zapisey zhurnala %d" % (_r, _c), flush=True)
         except Exception as _e:
+            db.session.rollback()
             print("PREDUPREZHDENIE: istoriya relizov ne primenena: %s" % _e, flush=True)
         for m in AVAILABLE_MODULES:
             try:
