@@ -179,6 +179,7 @@ setInterval(function(){refresh(false);},10000);
 window.addEventListener("focus",function(){refresh(false);});
 $("shtbody").addEventListener("click",function(e){
  var chk=e.target.closest(".shrowchk");if(chk){var id=Number(chk.dataset.id);sel=chk.checked?sel.concat([id]):sel.filter(function(x){return x!==id;});render();return;}
+ if(e.target.closest("td.editing"))return; /* edit-click-guard */
  var td=e.target.closest("td[data-key]");if(!td)return;var id=Number(td.dataset.id),key=td.dataset.key;active={id:id,key:key};
  openEditor(id,key);});
 $("shthead").addEventListener("click",function(e){
