@@ -9,9 +9,7 @@ while not os.path.isfile(os.path.join(d, "run.py")):
 BASE = d
 print("Корень проекта: " + BASE)
 
-# =========================================================================
 # ПРАВКА 1. core/app.py — убрать смену пароля из белого списка.
-# =========================================================================
 ap = os.path.join(BASE, "core", "app.py")
 src = open(ap, encoding="utf-8").read()
 old = '"auth.change_password", "auth.do_change_password", "static"}'
@@ -24,9 +22,7 @@ elif '"auth.change_password"' not in src:
 else:
     print("  ! core/app.py: якорь не совпал — пришли мне строки 13-14")
 
-# =========================================================================
 # ПРАВКА 2. core/auth_routes.py — @login_required на GET change_password.
-# =========================================================================
 arp = os.path.join(BASE, "core", "auth_routes.py")
 asrc = open(arp, encoding="utf-8").read()
 eol2 = "\r\n" if "\r\n" in asrc else "\n"
@@ -42,9 +38,7 @@ else:
     open(arp, "w", encoding="utf-8", newline="\n").write(out)
     print("  ~ core/auth_routes.py: @login_required добавлен на GET change_password")
 
-# =========================================================================
 # ПРАВКА 3. core/auth.py — починить кракозябры в сообщении входа.
-# =========================================================================
 aup = os.path.join(BASE, "core", "auth.py")
 if os.path.exists(aup):
     asrc3 = open(aup, encoding="utf-8").read()
@@ -53,8 +47,7 @@ if os.path.exists(aup):
     if good in asrc3:
         print("  = core/auth.py: сообщение входа уже нормальное")
     else:
-        ol = []
-        fixed = False
+        ol, fixed = [], False
         for ln in asrc3.splitlines():
             if ln.strip().startswith("login_manager.login_message"):
                 ol.append(good); fixed = True
@@ -69,10 +62,7 @@ if os.path.exists(aup):
 else:
     print("  ! core/auth.py не найден")
 
-# =========================================================================
 # ПРАВКА 4. history_seed.py (base64!) — релиз 0.12.9 + журнал.
-# Декодируем base64 -> JSON -> дописываем -> перекодируем. Идемпотентно.
-# =========================================================================
 hp = os.path.join(BASE, "modules", "versions", "history_seed.py")
 if not os.path.exists(hp):
     print("  ! history_seed.py не найден")
@@ -83,8 +73,7 @@ else:
         print("  ! history_seed.py: не найден блок _B64 (файл не в base64?)")
     else:
         data = json.loads(base64.b64decode(m.group(1)).decode("utf-8"))
-        have_rel = any(r.get("version") == "0.12.9" for r in data["releases"])
-        if have_rel:
+        if any(r.get("version") == "0.12.9" for r in data["releases"]):
             print("  = history_seed.py: 0.12.9 уже есть")
         else:
             data["releases"].insert(0, {
@@ -103,6 +92,8 @@ print("")
 print("=" * 60)
 print("MARKER_END: страница смены пароля защищена, релиз 0.12.9 в Git")
 print("=" * 60)
-print("Commit + Push:")
+print("Commit + Push (можно с работы):")
 print("  core/app.py, core/auth_routes.py, core/auth.py,")
 print("  modules/versions/history_seed.py, tools/installers/install.py")
+print("")
+print("ВИРТУАЛКУ СЕЙЧАС НЕ ТРОГАЕМ — нет доступа. Всё дождётся дома.")
