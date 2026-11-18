@@ -9,10 +9,6 @@ while not os.path.isfile(os.path.join(d, "run.py")):
 BASE = d
 print("Koren' proekta: " + BASE)
 
-# =========================================================================
-# ЭТАЛОН dark.css (чистый, из Git) + contrast-dark-fix v2.
-# Перезаписываем whole-file, чтобы убрать мусор прошлых попыток.
-# =========================================================================
 DARK_BASE = """/* Temnaya tema - primenyaetsya k body.dark */
 body.dark { background:#15171c; color:#d7dae0; }
 body.dark main { background:#1e2128; box-shadow:0 2px 6px rgba(0,0,0,.4); }
@@ -40,13 +36,11 @@ padding:6px 10px; cursor:pointer; font-size:16px; vertical-align:middle; margin-
 .theme-btn:hover { background:rgba(255,255,255,.32); }
 """
 
+# contrast-dark-fix v3: dobavleny div/p (data/notes v versiyah), no cifry
+# statistiki .card p zashisheny otdel'nyim bolee specifikhnym pravilom.
+# Zagolovki kategoriy (h1-h4) v spisok NE vhodyat - ostayutsya kak est.
 CONTRAST_FIX = """
-/* contrast-dark-fix v2: perebivaem inline-cveta šablonov (#2c3e50 na ssylkah
-   spravki, #5a6b85 na yacheykah roley) i tёmnye klassy (#6b7280 note/empty/
-   footer), kotorye v tёmnoy teme ostayutsya tёmnymi na tёmnom. !important
-   obyazaten protiv inline. Accenty NE trogaem: zagolovki h1-h4 (sirenevye
-   kategorii), cifry statistiki (.card p), bejdži/knopki/infо/flash zashisheny
-   cherez :not. p/div v spisok NE vklюčeny, čtoby ne poblekli cifry i kategorii. */
+/* contrast-dark-fix v3 */
 body.dark main a:not(.btn):not(.badge):not([class*="b-"]) { color:#8ea2ff !important; }
 body.dark main a:not(.btn):not(.badge):not([class*="b-"]):hover { color:#b3c2ff !important; }
 body.dark main td:not(.badge):not(.btn):not([class*="b-"]),
@@ -55,6 +49,9 @@ body.dark main small,
 body.dark main li,
 body.dark main .note,
 body.dark main .empty { color:#c4ccd8 !important; }
+body.dark main div:not(.badge):not(.btn):not([class*="b-"]):not(.info):not(.flash):not(.form-row):not(.toolbar),
+body.dark main p:not(.badge):not(.btn):not([class*="b-"]):not(.info):not(.flash):not(.form-row):not(.toolbar) { color:#d7dae0 !important; }
+body.dark main .card p { color:#e7eaf0 !important; }
 body.dark footer { color:#9aa3b2 !important; }
 """
 
@@ -62,11 +59,8 @@ dp = os.path.join(BASE, "web", "static", "css", "dark.css")
 if not os.path.exists(dp):
     dp = os.path.join(BASE, "static", "css", "dark.css")
 open(dp, "w", encoding="utf-8", newline="\n").write(DARK_BASE + CONTRAST_FIX)
-print("  ~ dark.css: pere zapisan čistym etalonon + contrast-dark-fix v2")
+print("  ~ dark.css: pere zapisan etalonon + contrast-dark-fix v3 (div/p + zashchita cifr)")
 
-# =========================================================================
-# reliz 0.12.13 v history_seed.py (base64).
-# =========================================================================
 hp = os.path.join(BASE, "modules", "versions", "history_seed.py")
 if not os.path.exists(hp):
     print("  ! history_seed.py ne naiden")
@@ -77,21 +71,27 @@ else:
         print("  ! history_seed.py: net bloka _B64")
     else:
         data = json.loads(base64.b64decode(m.group(1)).decode("utf-8"))
-        if any(r.get("version") == "0.12.13" for r in data["releases"]):
-            print("  = history_seed.py: 0.12.13 uzhe est")
+        if any(r.get("version") == "0.12.14" for r in data["releases"]):
+            print("  = history_seed.py: 0.12.14 uzhe est")
         else:
             data["releases"].insert(0, {
-                "version": "0.12.13", "release_date": "2026-11-18", "status": "released",
-                "title": "Контраст тёмной темы: ссылки и ячейки (в2)",
-                "notes": "Прошлый фикс контраста не сработал для названий статей в Справке, потому что шаблоны хардкодят inline-стиль color:#2c3e50 на ссылках, а правило без !important inline не перебивает. Теперь !important применён точечно: к ссылкам (стали акцентными), к ячейкам td (описания ролей), к классам .note/.empty/footer (заметки в Версиях). При этом p и div из перекраски исключены, чтобы не поблекли цифры статистики (.card p) и сиреневые заголовки категорий. dark.css перезаписан чистым эталоном, мусор прошлых попыток удалён."})
+                "version": "0.12.14", "release_date": "2026-11-18", "status": "released",
+                "title": "Контраст тёмной темы: карточки релизов (в3)",
+                "notes": "В прошлой версии приглушённый текст чинился для ссылок и ячеек, но теги div/p были намеренно исключены (чтобы не поблекли цифры статистики на главной). Из-за этого дата, заголовок и описание в карточках релизов остались тёмными на тёмном. Теперь div/p перекрашены цветом основного текста, а крупные цифры статистики (.card p) защищены отдельным более специфичным правилом; заголовки категорий (h1–h4) не затронуты. Светлая тема не изменена."})
             A = "sineronizatsiya dokumentacii"
-            data["changelog"].insert(0, {"date": "2026-11-18", "author": A, "change_type": "fixed", "module": "web", "ticket": "", "description": "Тёмная тема (в2): названия статей в Справке и описания ролей стали читаемыми — !important применён к ссылкам и td, перебивая inline-цвета шаблонов (#2c3e50/#5a6b85); заметки .note/.empty/footer подняты из #6b7280; p/div не тронуты, чтобы сохранить цифры статистики и сиреневые заголовки категорий."})
+            data["changelog"].insert(0, {"date": "2026-11-18", "author": A, "change_type": "fixed", "module": "web", "ticket": "", "description": "Тёмная тема (в3): карточки релизов стали читаемыми — div/p перекрашены в цвет основного текста, цифры статистики .card p защищены отдельным правилом, заголовки категорий не затронуты."})
             new_b64 = base64.b64encode(json.dumps(data, ensure_ascii=False).encode("utf-8")).decode("ascii")
             htxt = htxt[:m.start(1)] + new_b64 + htxt[m.end(1):]
             open(hp, "w", encoding="utf-8", newline="\n").write(htxt)
-            print("  + history_seed.py: reliz 0.12.13 (base64 peresobran)")
+            print("  + history_seed.py: reliz 0.12.14 (base64 peresobran)")
 
 print("")
 print("=" * 60)
-print("MARKER_END: kontrast tёмnoy temy v2 (0.12.13)")
+print("MARKER_END: kontrast tёмnoy temy v3 — kartochki relizov (0.12.14)")
 print("=" * 60)
+print("Commit + Push:")
+print("  web/static/css/dark.css            (contrast v3: div/p + zashchita cifr)")
+print("  modules/versions/history_seed.py   (0.12.14)")
+print("  tools/installers/install.py")
+print("")
+print("VM SEGODNYA NE TROGAEM (net dostupa) — doeedet domoy cheres ./update.sh")

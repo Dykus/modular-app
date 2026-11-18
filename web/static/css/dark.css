@@ -24,12 +24,7 @@ body.dark .theme-btn { background:rgba(255,255,255,.12); color:#fff; }
 padding:6px 10px; cursor:pointer; font-size:16px; vertical-align:middle; margin-left:6px; }
 .theme-btn:hover { background:rgba(255,255,255,.32); }
 
-/* contrast-dark-fix v2: perebivaem inline-cveta šablonov (#2c3e50 na ssylkah
-   spravki, #5a6b85 na yacheykah roley) i tёmnye klassy (#6b7280 note/empty/
-   footer), kotorye v tёmnoy teme ostayutsya tёmnymi na tёmnom. !important
-   obyazaten protiv inline. Accenty NE trogaem: zagolovki h1-h4 (sirenevye
-   kategorii), cifry statistiki (.card p), bejdži/knopki/infо/flash zashisheny
-   cherez :not. p/div v spisok NE vklюčeny, čtoby ne poblekli cifry i kategorii. */
+/* contrast-dark-fix v3 */
 body.dark main a:not(.btn):not(.badge):not([class*="b-"]) { color:#8ea2ff !important; }
 body.dark main a:not(.btn):not(.badge):not([class*="b-"]):hover { color:#b3c2ff !important; }
 body.dark main td:not(.badge):not(.btn):not([class*="b-"]),
@@ -38,4 +33,7 @@ body.dark main small,
 body.dark main li,
 body.dark main .note,
 body.dark main .empty { color:#c4ccd8 !important; }
+body.dark main div:not(.badge):not(.btn):not([class*="b-"]):not(.info):not(.flash):not(.form-row):not(.toolbar),
+body.dark main p:not(.badge):not(.btn):not([class*="b-"]):not(.info):not(.flash):not(.form-row):not(.toolbar) { color:#d7dae0 !important; }
+body.dark main .card p { color:#e7eaf0 !important; }
 body.dark footer { color:#9aa3b2 !important; }
