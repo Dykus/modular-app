@@ -45,5 +45,20 @@
   };
 })();
 </script>
+
+<script>
+/* menu-active: podsvetka tekushchego razdela (obe temy) */
+(function(){
+  var path = location.pathname.replace(/\/+$/,'');
+  var links = document.querySelectorAll('nav a');
+  for (var i=0;i<links.length;i++){
+    var a = links[i];
+    var href = (a.getAttribute('href')||'').split('?')[0].split('#')[0];
+    var hh = href.replace(/\/+$/,'');
+    var ok = (hh==='') ? (path==='') : (path===hh || path.indexOf(hh+'/')===0);
+    if (ok) a.classList.add('active');
+  }
+})();
+</script>
 </body>
 </html>
