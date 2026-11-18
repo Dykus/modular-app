@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block title %}{{ t.title }}{% endblock %}
 {% block content %}
+<a class="btn gray" href="{{ url_for('tables.sheet_view', tid=t.id) }}">📊 Лист (Excel-вид)</a> <!-- sheet-switch -->
 <div class="toolbar">
 {% for x in tabs %}<a href="{{ url_for('tables.view', tid=x.id) }}" class="btn {{ 'gray' if x.id != t.id }}">{{ x.title }}</a>{% endfor %}
 </div>
@@ -18,7 +19,7 @@
 </p></div>
 {% if counters %}<div class="stats">{% for c in counters %}<div class="card"><h3>{{ c.title }}</h3><p>{{ c.value }}</p></div>{% endfor %}</div>{% endif %}
 {% if mode == 'history' %}
-<table>
+<div class="tscroll"><table>
 <thead><tr><th>Когда</th><th>Кто</th><th>Строка</th><th>Колонка</th><th>Было</th><th>Стало</th></tr></thead>
 <tbody>
 {% for l in logs %}
@@ -27,10 +28,10 @@
 <td>{{ l.old_value or '—' }}</td><td>{{ l.new_value or '—' }}</td></tr>
 {% else %}<tr><td colspan="6" class="empty">Изменений пока нет.</td></tr>{% endfor %}
 </tbody>
-</table>
+</table></div>
 {% elif mode == 'trash' %}
 <p class="note">Удалённые строки хранятся {{ trash_days }} дней, затем удаляются автоматически.</p>
-<table>
+<div class="tscroll"><table>
 <thead><tr><th>№</th><th>Данные</th><th>Кто удалил</th><th>Когда</th><th>Действия</th></tr></thead>
 <tbody>
 {% for line in disp %}
@@ -44,9 +45,9 @@
 </td></tr>
 {% else %}<tr><td colspan="5" class="empty">Корзина пуста.</td></tr>{% endfor %}
 </tbody>
-</table>
+</table></div>
 {% else %}
-<table>
+<div class="tscroll"><table>
 <thead>
 <tr>{% for c in cols %}<th>{{ c.title }}{% if c.col_type in ('computed','ref') %} ⚙{% elif can_edit_col(m, c.key) %} ✎{% else %} 🔒{% endif %}{% if c.grp %}<div class="note">{{ c.grp }}</div>{% endif %}</th>{% endfor %}<th>Действия</th></tr>
 </thead>
@@ -65,7 +66,7 @@
 <tr><td colspan="{{ cols|length + 1 }}" class="empty">Строк пока нет. Нажмите «+ Строка».</td></tr>
 {% endfor %}
 </tbody>
-</table>
+</table></div>
 <p class="note">✎ — колонку можно менять вашей роли, 🔒 — только чтение, ⚙ — вычисляется программой (формула или ссылка на другую таблицу).</p>
 {% endif %}
 {% endblock %}

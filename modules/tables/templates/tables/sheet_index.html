@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+{% block title %}Лист (Excel-вид){% endblock %}
+{% block content %}
+<h2>Лист (Excel-вид)</h2>
+<p class="note">Выбери таблицу — она откроется как рабочий лист: клик по клетке, цвета отделов, история.</p>
+<div class="stats">{% for t in tables %}<div class="card"><h3>{{ t.title }}</h3><p style="font-size:15px"><a class="btn" href="{{ url_for('tables.sheet_view', tid=t.id) }}">Открыть лист</a></p></div>{% else %}<div class="empty">Нет доступных таблиц.</div>{% endfor %}</div>
+{% endblock %}

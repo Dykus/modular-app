@@ -14,3 +14,5 @@
   section { page-break-inside: auto; }
   .badge { border: 1px solid #000; color: #000 !important; background: #fff !important; }
 }
+/* tscroll-print */
+@media print{.tscroll{overflow:visible}}

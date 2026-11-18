@@ -31,3 +31,7 @@ body.dark main a:not(.btn):not(.badge):not([class*="b-"]){ color:#8ea2ff !import
 body.dark main a:not(.btn):not(.badge):not([class*="b-"]):hover{ color:#b3c2ff !important; }
 body.dark main .card p{ color:#e7eaf0 !important; }
 body.dark footer{ color:#9aa3b2 !important; }
+/* tscroll-dark */
+body.dark .tscroll::-webkit-scrollbar-thumb{background:#3a3f4b}
+body.dark .tscroll::-webkit-scrollbar-thumb:hover{background:#4a5060}
+body.dark .tscroll::-webkit-scrollbar-track{background:#1a1d24}

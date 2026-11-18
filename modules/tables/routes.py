@@ -417,3 +417,5 @@ def access(tid):
         return redirect(url_for("tables.access", tid=tid))
     maps = {r.id: role_access(tid, r.id) for r in roles}
     return render_template("tables/access.html", t=t, cols=cols, roles=roles, maps=maps)
+
+from modules.tables import sheet_routes  # sheet-link

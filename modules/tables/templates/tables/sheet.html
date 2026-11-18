@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block title %}{{ t.title }} — лист{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/sheet.css') }}">
+<script>
+/* sh-errwatch: lovim lyubuyu oshibku JS (vklyuchaya SyntaxError vneshnego faila) */
+window.addEventListener("error", function(e){
+  var b = document.getElementById("sherr");
+  if(!b){
+    b = document.createElement("div"); b.id = "sherr";
+    b.style.cssText = "background:#fde8ef;border:2px solid #d6336c;color:#a61e4d;padding:10px 14px;border-radius:10px;margin:10px 0;font:13px monospace;white-space:pre-wrap";
+    var r = document.getElementById("shroot");
+    if(r && r.parentNode) r.parentNode.insertBefore(b, r); else document.body.appendChild(b);
+  }
+  b.textContent += "JS ERROR: " + (e.message || "?") + " @ " + (e.filename || "?") + ":" + (e.lineno || "?") + ":" + (e.colno || "?") + "\n";
+}, true);
+</script>
+
+<div id="shroot" data-tid="{{ t.id }}">
+  <div class="shtop">
+    <h2>{{ t.title }} <span class="shmode">лист · как в Excel</span></h2>
+    <div class="shacts">
+      <a class="btn gray" href="{{ payload.urls.form }}">📋 Форма</a>
+      <a class="btn gray" href="{{ payload.urls.trash }}">🗑 Корзина (<span id="shtrash">{{ payload.trash }}</span>)</a>
+      <button class="btn" id="shnew">＋ Строка</button>
+      <button class="btn gray" id="shcsv">⬇ CSV</button>
+      <button class="btn gray" id="shprint">🖨 Печать</button>
+    </div>
+  </div>
+  <div class="shhint">Клик по своей клетке — правка · <b>Enter</b> сохранить · <b>Tab</b> следующая · <b>Esc</b> отмена · <b>стрелки</b> навигация · <b>Ctrl+Z</b> отменить · 🔒 чужая колонка · правый клик по строке — карточка</div>
+  <div class="shbar">
+    <input id="shq" type="search" placeholder="Поиск по строкам…">
+    <select id="shfcol"></select><select id="shfval"></select>
+    <label class="shchk"><input type="checkbox" id="shover"> только свежие правки</label>
+    <select id="shviews"></select>
+    <button class="btn gray" id="shsaveview">💾 Вид</button>
+    <button class="btn gray" id="shdelview">🗑 Вид</button>
+    <div class="shbulk" id="shbulk"><span id="shbulkn"></span>
+      <select id="shbulkcol"></select><input id="shbulkval" placeholder="значение">
+      <button class="btn" id="shbulkapply">Применить</button>
+      <button class="btn red" id="shbulkdel">Удалить</button>
+      <button class="btn gray" id="shbulkclear">✕</button>
+    </div>
+  </div>
+  <div class="shviewbar">
+    <label>Плотность <select id="shdensity"><option value="c">компакт</option><option value="n" selected>обычная</option><option value="r">просторная</option></select></label>
+    <label>Шрифт <input type="range" id="shfont" min="12" max="18" value="14"><span id="shfontv">14</span></label>
+    <label><input type="checkbox" id="shdark"> тёмная</label>
+    <label><input type="checkbox" id="shzebra" checked> зебра</label>
+    <label><input type="checkbox" id="shgrid" checked> сетка</label>
+    <label><input type="checkbox" id="shlocks" checked> замки</label>
+    <label><input type="checkbox" id="shrecent" checked> подсветка правок</label>
+    <label><input type="checkbox" id="shfreeze" checked> закрепить 1-й столбец</label>
+    <label><input type="checkbox" id="shbands" checked> шапка групп</label>
+    <label><input type="checkbox" id="shpause"> пауза автообновления</label>
+    <button class="btn gray" id="shrefresh">⟳ Обновить</button>
+    <span class="shpoll" id="shpoll">обновлено сейчас</span>
+  </div>
+  <div class="shcounters" id="shcounters"></div>
+  <div class="shgridbox" id="shgridbox"><table id="shgrid"><thead id="shthead"></thead><tbody id="shtbody"></tbody></table></div>
+  <div class="shfeedwrap"><h3>История изменений по клеткам</h3><div class="shfeed" id="shfeed"></div></div>
+</div>
+<div class="shscrim" id="shscrim"></div>
+<aside class="shdrawer" id="shdrawer">
+  <header><h3 id="shdtitle"></h3><button class="btn gray" id="shdclose">✕</button></header>
+  <div class="shdbody" id="shdbody"></div>
+  <footer><button class="btn gray" id="shdup">↑</button><button class="btn gray" id="shddown">↓</button>
+  <button class="btn red" id="shddel">🗑 В корзину</button></footer>
+</aside>
+<div class="shtoasts" id="shtoasts"></div>
+<script>window.SHEET = {{ payload|tojson }};</script>
+<script src="{{ url_for('static', filename='js/sheet.js') }}"></script>
+<script>
+/* sh-emptywatch: esli setka pustaya i oshibok ne pojmano — govorim pryamo */
+setTimeout(function(){
+  var tb = document.getElementById("shtbody");
+  if(tb && !tb.children.length && !document.getElementById("sherr")){
+    var b = document.createElement("div"); b.id = "sherr";
+    b.style.cssText = "background:#fff3cd;border:2px solid #e8930c;color:#7a4b00;padding:10px 14px;border-radius:10px;margin:10px 0;font:13px monospace;white-space:pre-wrap";
+    b.textContent = "JS не запустился: таблица пустая, ошибок не поймано. Открой F12 -> Console и пришли текст красной строки.";
+    var r = document.getElementById("shroot");
+    if(r && r.parentNode) r.parentNode.insertBefore(b, r);
+  }
+}, 1500);
+</script>
+
+{% endblock %}
