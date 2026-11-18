@@ -1,0 +1,38 @@
+=== DIAG CHANGELOG ===
+SEED releases (24): 0.12.16, 0.6.0, 0.7.0, 0.8.0, 0.8.1, 0.8.2, 0.9.0, 0.9.1, 0.9.2, 0.10.0, 0.10.1, 0.11.0, 0.11.1, 0.12.0, 0.12.1, 0.12.2, 0.12.3, 0.12.4, 0.12.5, 0.12.6, 0.12.7, 0.12.8, 0.12.9, 0.12.15
+DB releases (29): 0.1.0, 0.10.0, 0.10.1, 0.11.0, 0.11.1, 0.12.0, 0.12.1, 0.12.15, 0.12.16, 0.12.2, 0.12.3, 0.12.4, 0.12.5, 0.12.6, 0.12.7, 0.12.8, 0.12.9, 0.2.0, 0.3.0, 0.4.0, 0.5.0, 0.6.0, 0.7.0, 0.8.0, 0.8.1, 0.8.2, 0.9.0, 0.9.1, 0.9.2
+missing releases in DB: none
+
+SEED changelog total: 65
+DB changelog total: 78
+missing changelog in DB: 0
+
+--- SEED changelog dated 2026-11-18 (13) ---
+[fixed|versions] Current version pointer fixed: newest release by semantic version becomes current; fixes stuck current 0.12.9 after hist
+[changed|versions] История релизов и журнала изменений стала СТАТИЧЕСКИМ кодом в Git (modules/versions/history_seed.py), собранным из sync-
+[removed|tools] tools/export_history.py удалён: генерация истории из локальной базы больше не нужна и была источником зависимости от Win
+[fixed|versions] Сортировка списка релизов и блока «последние релизы» переведена на семантический номер версии: порядок больше не зависит
+[added|versions] Релиз 0.12.7 добавлен в статический history_seed.py — приезжает на сервер через Git, без sync-скрипта в корне.
+[added|docs] Справка и руководство стали статическим кодом в Git (modules/versions/docs_seed.py): 17 статей и 6 разделов применяются 
+[changed|core] create_app() вызывает docs_seed.apply() после run_seed(): документация доливается/приводится к эталону автоматически, бе
+[fixed|core] Принудительная смена пароля при первом входе заработала на существующих базах: разовая миграция выставляет must_change_p
+[fixed|core] В сообщении про занятый порт в серверном режиме вместо литерала %d теперь подставляется реальный номер порта.
+[fixed|web] Тёмная тема: финальный контраст — универсальное переопределение цвета текста внутри main через !important с защитой акце
+[fixed|core] В except-блоках автоприменения истории/документации добавлен db.session.rollback(): ошибка одного применения больше не о
+[added|versions] history_seed.py пересобран целиком из sync-скриптов: полный список релизов 0.6.0–0.12.15 и журнал в base64; любая чистая
+[fixed|web] Подсветка активного пункта меню: добавлено обратное совпадение префикса URL, чтобы «Производство» (/production/index → /
+
+--- DB changelog dated 2026-11-18 (9) ---
+[added|docs] Справка и руководство стали статическим кодом в Git (modules/versions/docs_seed.py): 17 статей и 6 разделов применяются 
+[changed|core] create_app() вызывает docs_seed.apply() после run_seed(): документация доливается/приводится к эталону автоматически, бе
+[fixed|versions] Current version pointer fixed: newest release by semantic version becomes current; fixes stuck current 0.12.9 after hist
+[fixed|core] Принудительная смена пароля при первом входе заработала на существующих базах: разовая миграция выставляет must_change_p
+[fixed|core] В сообщении про занятый порт в серверном режиме вместо литерала %d теперь подставляется реальный номер порта.
+[fixed|web] Тёмная тема: финальный контраст — универсальное переопределение цвета текста внутри main через !important с защитой акце
+[fixed|core] В except-блоках автоприменения истории/документации добавлен db.session.rollback(): ошибка одного применения больше не о
+[added|versions] history_seed.py пересобран целиком из sync-скриптов: полный список релизов 0.6.0–0.12.15 и журнал в base64; любая чистая
+[fixed|web] Подсветка активного пункта меню: добавлено обратное совпадение префикса URL, чтобы «Производство» (/production/index → /
+
+--- missing in DB (seed minus db), first 40 ---
+
+RETRY: RETRY apply ok: added_r=0 added_c=0

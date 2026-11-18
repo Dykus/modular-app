@@ -21,7 +21,7 @@ def list_entries():
     if q:
         like = "%" + q + "%"
         query = query.filter(db.or_(ChangelogEntry.description.ilike(like), ChangelogEntry.author.ilike(like)))
-    entries = query.order_by(ChangelogEntry.date.desc()).all()
+    entries = query.order_by(ChangelogEntry.date.desc(), ChangelogEntry.id.desc()).all()
     db_mods = [r[0] for r in db.session.query(ChangelogEntry.module).distinct().all()]
     module_opts = sorted(set(DEFAULT_MODULES) | set(db_mods))
     return render_template("changelog/list.html", entries=entries, types=TYPE_LABELS, badges=TYPE_BADGE,
@@ -57,7 +57,7 @@ def delete(eid):
 @perm("changelog.view")
 def export_csv():
     rows = ["Дата;Тип;Модуль;Описание;Автор;Задача"]
-    for e in ChangelogEntry.query.order_by(ChangelogEntry.date.desc()).all():
+    for e in ChangelogEntry.query.order_by(ChangelogEntry.date.desc(), ChangelogEntry.id.desc()).all():
         rows.append(";".join([
             e.date.strftime("%d.%m.%Y %H:%M"),
             TYPE_LABELS.get(e.change_type, e.change_type),
