@@ -24,16 +24,27 @@ body.dark .theme-btn { background:rgba(255,255,255,.12); color:#fff; }
 padding:6px 10px; cursor:pointer; font-size:16px; vertical-align:middle; margin-left:6px; }
 .theme-btn:hover { background:rgba(255,255,255,.32); }
 
-/* contrast-dark-fix v3 */
-body.dark main a:not(.btn):not(.badge):not([class*="b-"]) { color:#8ea2ff !important; }
-body.dark main a:not(.btn):not(.badge):not([class*="b-"]):hover { color:#b3c2ff !important; }
+/* contrast-wide: perekrashivaem LYUBOY tekstovyy kontent vnutri main,
+   krome accentov (bejdži/knopki/ssylki/zagolovki/kcifry statistiki).
+   Pokryvaet time/dt/dd/em/i/strong/b/code vdobavok k div/p/span/small/li/td,
+   chtoby pojmat' kartochki relizov bez DevTools. !important protiv inline. */
+body.dark main a:not(.btn):not(.badge):not([class*="b-"]){color:#8ea2ff !important}
+body.dark main a:not(.btn):not(.badge):not([class*="b-"]):hover{color:#b3c2ff !important}
 body.dark main td:not(.badge):not(.btn):not([class*="b-"]),
 body.dark main span:not(.badge):not(.btn):not([class*="b-"]):not(.uname),
 body.dark main small,
 body.dark main li,
+body.dark main time,
+body.dark main dt,
+body.dark main dd,
+body.dark main em,
+body.dark main i,
+body.dark main strong,
+body.dark main b,
+body.dark main code,
+body.dark main div:not(.badge):not(.btn):not([class*="b-"]):not(.info):not(.flash):not(.form-row):not(.toolbar):not(.stats),
+body.dark main p:not(.badge):not(.btn):not([class*="b-"]):not(.info):not(.flash):not(.form-row):not(.toolbar):not(.stats),
 body.dark main .note,
 body.dark main .empty { color:#c4ccd8 !important; }
-body.dark main div:not(.badge):not(.btn):not([class*="b-"]):not(.info):not(.flash):not(.form-row):not(.toolbar),
-body.dark main p:not(.badge):not(.btn):not([class*="b-"]):not(.info):not(.flash):not(.form-row):not(.toolbar) { color:#d7dae0 !important; }
 body.dark main .card p { color:#e7eaf0 !important; }
 body.dark footer { color:#9aa3b2 !important; }
