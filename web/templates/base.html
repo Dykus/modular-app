@@ -47,7 +47,7 @@
 </script>
 
 <script>
-/* menu-active: podsvetka tekushchego razdela (obe temy) */
+/* menu-active: podsvetka tekushchego razdela (obe temy), chinit /production */
 (function(){
   var path = location.pathname.replace(/\/+$/,'');
   var links = document.querySelectorAll('nav a');
@@ -55,7 +55,11 @@
     var a = links[i];
     var href = (a.getAttribute('href')||'').split('?')[0].split('#')[0];
     var hh = href.replace(/\/+$/,'');
-    var ok = (hh==='') ? (path==='') : (path===hh || path.indexOf(hh+'/')===0);
+    var ok = false;
+    if (hh==='') { ok = (path===''); }
+    else if (path===hh) { ok = true; }
+    else if (path.indexOf(hh+'/')===0) { ok = true; }
+    else if (path!=='' && hh.indexOf(path+'/')===0) { ok = true; }
     if (ok) a.classList.add('active');
   }
 })();

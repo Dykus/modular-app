@@ -10,138 +10,88 @@ BASE = d
 print("Koren' proekta: " + BASE)
 
 # =========================================================================
-# ПРАВКА 1. dark.css — второстепенный текст должен быть СВЕТЛЕЕ на тёмном,
-# а не темнее. Поднимаем #6b7280 -> #9aa3b2 для .empty / .note / footer.
+# ЭТАЛОН dark.css (чистый, из Git) + contrast-dark-fix v2.
+# Перезаписываем whole-file, чтобы убрать мусор прошлых попыток.
 # =========================================================================
+DARK_BASE = """/* Temnaya tema - primenyaetsya k body.dark */
+body.dark { background:#15171c; color:#d7dae0; }
+body.dark main { background:#1e2128; box-shadow:0 2px 6px rgba(0,0,0,.4); }
+body.dark header { background:linear-gradient(135deg,#3b4270,#4a2f63); }
+body.dark .welcome h2 { color:#8ea2ff; }
+body.dark .welcome p, body.dark .card h3 { color:#9aa3b2; }
+body.dark .card { background:#23262e; border-left-color:#8ea2ff; box-shadow:0 2px 4px rgba(0,0,0,.3); }
+body.dark .card p { color:#e7eaf0; }
+body.dark th { background:#23262e; color:#9aa3b2; border-bottom-color:#333844; }
+body.dark td { border-bottom-color:#2a2e37; }
+body.dark tr:hover td { background:#262a33; }
+body.dark .form-row { background:#23262e; border-color:#3a3f4b; }
+body.dark .form-row input, body.dark .form-row select,
+body.dark .toolbar input[type=text] { background:#1a1d24; border-color:#3a3f4b; color:#e7eaf0; }
+body.dark .btn.gray { background:#3a3f4b; } body.dark .btn.gray:hover { background:#4a5060; }
+body.dark .info { background:#1c2733; border-left-color:#3b82f6; }
+body.dark .info h3 { color:#60a5fa; }
+body.dark .flash { background:#3a2f12; border-left-color:#f39c12; color:#ffd97a; }
+body.dark .empty { color:#6b7280; }
+body.dark .note { color:#6b7280; }
+body.dark footer { color:#6b7280; }
+body.dark .theme-btn { background:rgba(255,255,255,.12); color:#fff; }
+.theme-btn { background:rgba(255,255,255,.2); color:#fff; border:none; border-radius:6px;
+padding:6px 10px; cursor:pointer; font-size:16px; vertical-align:middle; margin-left:6px; }
+.theme-btn:hover { background:rgba(255,255,255,.32); }
+"""
+
+CONTRAST_FIX = """
+/* contrast-dark-fix v2: perebivaem inline-cveta šablonov (#2c3e50 na ssylkah
+   spravki, #5a6b85 na yacheykah roley) i tёmnye klassy (#6b7280 note/empty/
+   footer), kotorye v tёmnoy teme ostayutsya tёmnymi na tёmnom. !important
+   obyazaten protiv inline. Accenty NE trogaem: zagolovki h1-h4 (sirenevye
+   kategorii), cifry statistiki (.card p), bejdži/knopki/infо/flash zashisheny
+   cherez :not. p/div v spisok NE vklюčeny, čtoby ne poblekli cifry i kategorii. */
+body.dark main a:not(.btn):not(.badge):not([class*="b-"]) { color:#8ea2ff !important; }
+body.dark main a:not(.btn):not(.badge):not([class*="b-"]):hover { color:#b3c2ff !important; }
+body.dark main td:not(.badge):not(.btn):not([class*="b-"]),
+body.dark main span:not(.badge):not(.btn):not([class*="b-"]):not(.uname),
+body.dark main small,
+body.dark main li,
+body.dark main .note,
+body.dark main .empty { color:#c4ccd8 !important; }
+body.dark footer { color:#9aa3b2 !important; }
+"""
+
 dp = os.path.join(BASE, "web", "static", "css", "dark.css")
 if not os.path.exists(dp):
-    dp = os.path.join(BASE, "static", "css", "dark.css")  # запасной путь
-src = open(dp, encoding="utf-8").read()
-pairs = [
-    ("body.dark .empty { color:#6b7280; }", "body.dark .empty { color:#9aa3b2; }"),
-    ("body.dark .note { color:#6b7280; }",  "body.dark .note { color:#9aa3b2; }"),
-    ("body.dark footer { color:#6b7280; }", "body.dark footer { color:#9aa3b2; }"),
-]
-chg = False
-for old, new in pairs:
-    if old in src:
-        src = src.replace(old, new, 1); chg = True
-        print("  ~ dark.css: %s -> светлее" % old.split('{')[0].strip())
-    elif new in src:
-        print("  = dark.css: %s уже починен" % new.split('{')[0].strip())
-    else:
-        print("  ! dark.css: якорь не найден: %s" % old)
-# Ссылки в контенте (покрывает неизвестные классы help/list): акцент вместо тёмного.
-LINK_BLOCK = ("\nbody.dark main a:not(.btn){color:#8ea2ff}\n"
-              "body.dark main a:not(.btn):hover{color:#b3c2ff}\n")
-if "body.dark main a:not(.btn)" not in src:
-    src = src.rstrip("\n") + "\n" + LINK_BLOCK
-    chg = True
-    print("  + dark.css: ссылки в контенте получили акцентный цвет")
-else:
-    print("  = dark.css: акцент ссылок уже стоит")
-if chg:
-    open(dp, "w", encoding="utf-8", newline="\n").write(src)
+    dp = os.path.join(BASE, "static", "css", "dark.css")
+open(dp, "w", encoding="utf-8", newline="\n").write(DARK_BASE + CONTRAST_FIX)
+print("  ~ dark.css: pere zapisan čistym etalonon + contrast-dark-fix v2")
 
 # =========================================================================
-# ПРАВКА 2. style.css — подсветка АКТИВНОГО пункта меню (работает в обеих
-# темах, потому что шапка цветная и в light, и в dark).
-# =========================================================================
-sp = os.path.join(BASE, "web", "static", "css", "style.css")
-if not os.path.exists(sp):
-    sp = os.path.join(BASE, "static", "css", "style.css")
-ssrc = open(sp, encoding="utf-8").read()
-ACTIVE = "nav a.active{background:rgba(255,255,255,.28);box-shadow:inset 0 -2px 0 rgba(255,255,255,.9)}\n"
-if "nav a.active" not in ssrc:
-    ssrc = ssrc.rstrip("\n") + "\n" + ACTIVE
-    open(sp, "w", encoding="utf-8", newline="\n").write(ssrc)
-    print("  + style.css: правило подсветки активного пункта меню")
-else:
-    print("  = style.css: подсветка активного пункта уже стоит")
-
-# =========================================================================
-# ПРАВКА 3. base.html — JS-подсветка текущего раздела.
-# Вставка каскадом якорей (</body> -> блок content), идемпотентно по маркеру.
-# Не зависит от реальных классов/тегов ссылок: ищет nav a по DOM.
-# =========================================================================
-bp = os.path.join(BASE, "web", "templates", "base.html")
-if not os.path.exists(bp):
-    bp = os.path.join(BASE, "templates", "base.html")
-bsrc = open(bp, encoding="utf-8").read()
-MARK = "menu-active"
-SCRIPT = (
-"\n<script>\n"
-"/* " + MARK + ": podsvetka tekushchego razdela (obe temy) */\n"
-"(function(){\n"
-"  var path = location.pathname.replace(/\\/+$/,'');\n"
-"  var links = document.querySelectorAll('nav a');\n"
-"  for (var i=0;i<links.length;i++){\n"
-"    var a = links[i];\n"
-"    var href = (a.getAttribute('href')||'').split('?')[0].split('#')[0];\n"
-"    var hh = href.replace(/\\/+$/,'');\n"
-"    var ok = (hh==='') ? (path==='') : (path===hh || path.indexOf(hh+'/')===0);\n"
-"    if (ok) a.classList.add('active');\n"
-"  }\n"
-"})();\n"
-"</script>\n"
-)
-if MARK in bsrc:
-    print("  = base.html: подсветка меню уже вставлена")
-else:
-    inserted = False
-    if "</body>" in bsrc:
-        bsrc = bsrc.replace("</body>", SCRIPT + "</body>", 1)
-        inserted = True
-        print("  + base.html: JS-подсветка вставлена перед </body>")
-    else:
-        m = re.search(r"\{%\s*block\s+content\s*%\}[\s\S]*?\{%\s*endblock\s*%\}", bsrc)
-        if m:
-            bsrc = bsrc[:m.end()] + SCRIPT + bsrc[m.end():]
-            inserted = True
-            print("  + base.html: JS-подсветка вставлена после блока content")
-    if inserted:
-        open(bp, "w", encoding="utf-8", newline="\n").write(bsrc)
-    else:
-        print("  ! base.html: не найдено ни </body>, ни блока content — пришли base.html ФАЙЛОМ")
-
-# =========================================================================
-# ПРАВКА 4. history_seed.py (base64) — релиз 0.12.10 + журнал.
+# reliz 0.12.13 v history_seed.py (base64).
 # =========================================================================
 hp = os.path.join(BASE, "modules", "versions", "history_seed.py")
 if not os.path.exists(hp):
-    print("  ! history_seed.py не найден")
+    print("  ! history_seed.py ne naiden")
 else:
     htxt = open(hp, encoding="utf-8").read()
     m = re.search(r'_B64\s*=\s*"([^"]*)"', htxt)
     if not m:
-        print("  ! history_seed.py: нет блока _B64 (не в base64?)")
+        print("  ! history_seed.py: net bloka _B64")
     else:
         data = json.loads(base64.b64decode(m.group(1)).decode("utf-8"))
-        if any(r.get("version") == "0.12.10" for r in data["releases"]):
-            print("  = history_seed.py: 0.12.10 уже есть")
+        if any(r.get("version") == "0.12.13" for r in data["releases"]):
+            print("  = history_seed.py: 0.12.13 uzhe est")
         else:
             data["releases"].insert(0, {
-                "version": "0.12.10", "release_date": "2026-11-18", "status": "released",
-                "title": "Контраст тёмной темы и подсветка текущего раздела",
-                "notes": "В тёмной теме второстепенный текст (заметки .note, пустые состояния .empty, подвал) стал светлее и читается на тёмном фоне вместо прежнего тёмно-серого; ссылки в контенте (в т.ч. названия статей в Справке) получили акцентный цвет вместо тёмного. В меню шапки текущий раздел теперь подсвечивается (работает и в светлой, и в тёмной теме). Светлая тема не изменена."})
+                "version": "0.12.13", "release_date": "2026-11-18", "status": "released",
+                "title": "Контраст тёмной темы: ссылки и ячейки (в2)",
+                "notes": "Прошлый фикс контраста не сработал для названий статей в Справке, потому что шаблоны хардкодят inline-стиль color:#2c3e50 на ссылках, а правило без !important inline не перебивает. Теперь !important применён точечно: к ссылкам (стали акцентными), к ячейкам td (описания ролей), к классам .note/.empty/footer (заметки в Версиях). При этом p и div из перекраски исключены, чтобы не поблекли цифры статистики (.card p) и сиреневые заголовки категорий. dark.css перезаписан чистым эталоном, мусор прошлых попыток удалён."})
             A = "sineronizatsiya dokumentacii"
-            data["changelog"].insert(0, {"date": "2026-11-18", "author": A, "change_type": "fixed", "module": "web", "ticket": "", "description": "Тёмная тема: второстепенный текст (.note/.empty/footer) поднят с #6b7280 до #9aa3b2 — читается на тёмном фоне; раньше был темнее светлой темы при инвертированном фоне."})
-            data["changelog"].insert(1, {"date": "2026-11-18", "author": A, "change_type": "fixed", "module": "web", "ticket": "", "description": "Тёмная тема: ссылки в контенте (main a, кроме кнопок .btn) получили акцентный цвет #8ea2ff — названия статей в Справке и прочие внутристраничные ссылки больше не тонут в тёмном фоне."})
-            data["changelog"].insert(2, {"date": "2026-11-18", "author": A, "change_type": "added", "module": "web", "ticket": "", "description": "Подсветка активного пункта меню: текущий раздел выделяется фоном и нижней линией в обеих темах (JS по DOM nav a + правило nav a.active)."})
+            data["changelog"].insert(0, {"date": "2026-11-18", "author": A, "change_type": "fixed", "module": "web", "ticket": "", "description": "Тёмная тема (в2): названия статей в Справке и описания ролей стали читаемыми — !important применён к ссылкам и td, перебивая inline-цвета шаблонов (#2c3e50/#5a6b85); заметки .note/.empty/footer подняты из #6b7280; p/div не тронуты, чтобы сохранить цифры статистики и сиреневые заголовки категорий."})
             new_b64 = base64.b64encode(json.dumps(data, ensure_ascii=False).encode("utf-8")).decode("ascii")
             htxt = htxt[:m.start(1)] + new_b64 + htxt[m.end(1):]
             open(hp, "w", encoding="utf-8", newline="\n").write(htxt)
-            print("  + history_seed.py: релиз 0.12.10 и 3 записи журнала (base64 пересобран)")
+            print("  + history_seed.py: reliz 0.12.13 (base64 peresobran)")
 
 print("")
 print("=" * 60)
-print("MARKER_END: kontrast tёмnoy temy + podsvetka razdela (0.12.10)")
+print("MARKER_END: kontrast tёмnoy temy v2 (0.12.13)")
 print("=" * 60)
-print("Commit + Push:")
-print("  web/static/css/dark.css   (muted светлее + акцент ссылок)")
-print("  web/static/css/style.css  (nav a.active)")
-print("  web/templates/base.html   (JS-подсветка меню)")
-print("  modules/versions/history_seed.py (0.12.10)")
-print("  tools/installers/install.py")
-print("")
-print("VM SEGYODNYA NE TROGAEM (net dostupa) — doeedet domoy cheres ./update.sh")
