@@ -1,4 +1,5 @@
-import os, re, json, base64, sys
+import os, subprocess, sys
+from sqlalchemy import text
 
 d = os.path.dirname(os.path.abspath(__file__))
 while not os.path.isfile(os.path.join(d, "run.py")):
@@ -9,242 +10,82 @@ while not os.path.isfile(os.path.join(d, "run.py")):
 BASE = d
 print("Корень проекта: " + BASE)
 
-DOCS_TEMPLATE = """# ЭТАЛОН СПРАВКИ И РУКОВОДСТВА — СТАТИЧЕСКИЙ КОД В GIT.
-# Данные упакованы в base64, чтобы переводы строк и кавычки не ломали импорт.
-import base64 as _b64
-import json as _json
-from datetime import datetime as _dt
+# =========================================================================
+# ШАГ A. Миграция данных: у локального admin выставить must_change_password=1,
+# если он 0/NULL (колонка добавилась позже и SQLite дал 0 старым строкам).
+# Идемпотентно: повторный запуск трогает 0 строк.
+# =========================================================================
+print("")
+print("Миграция флага смены пароля...")
+print("-" * 50)
+sys.path.insert(0, BASE)
+from core.app import create_app, db
+app = create_app()
+with app.app_context():
+    res = db.session.execute(text(
+        "UPDATE user SET must_change_password=1 "
+        "WHERE username='admin' AND (must_change_password=0 OR must_change_password IS NULL)"
+    ))
+    db.session.commit()
+    n = res.rowcount or 0
+    print("  admin: флаг выставлен, затронутых строк = %d" % n)
+    if n == 0:
+        print("  (уже был 1 — ничего не меняли; если смены всё равно нет, виновник перехват, не данные)")
+print("-" * 50)
 
-_B64 = "{b64}"
-_DATA = _json.loads(_b64.b64decode(_B64).decode("utf-8"))
-
-def apply():
-    from core.app import db
-    try:
-        from modules.help.models import HelpArticle, CATEGORIES
-    except ImportError:
-        from modules.help.models import HelpArticle
-        CATEGORIES = []
-    from modules.manual.models import ManualSection
-
-    n_h = 0
-    for rec in _DATA["help"]:
-        cat = rec.get("category") or ""
-        if CATEGORIES and cat not in CATEGORIES:
-            cat = CATEGORIES[0]
-        a = HelpArticle.query.filter_by(title=rec["title"]).first()
-        if not a:
-            a = HelpArticle(title=rec["title"], category=cat,
-                            order=rec.get("order", 0), body=rec["body"],
-                            edited_by="docs_seed")
-            db.session.add(a)
-        else:
-            a.category = cat
-            a.order = rec.get("order", a.order)
-            a.body = rec["body"]
-            a.edited_by = "docs_seed"
-            a.updated_at = _dt.utcnow()
-        n_h += 1
-    try:
-        db.session.commit()
-    except Exception:
-        db.session.rollback()
-        raise
-
-    n_m = 0
-    for rec in _DATA["manual"]:
-        s = ManualSection.query.filter_by(code=rec["code"]).first()
-        if not s:
-            s = ManualSection(code=rec["code"],
-                              title=rec.get("title") or rec["code"],
-                              order=rec.get("order", 0), body=rec["body"],
-                              updated_by="docs_seed")
-            db.session.add(s)
-        else:
-            if rec.get("title"):
-                s.title = rec["title"]
-            if rec.get("order") is not None:
-                s.order = rec["order"]
-            s.body = rec["body"]
-            s.updated_by = "docs_seed"
-            s.updated_at = _dt.utcnow()
-        n_m += 1
-    try:
-        db.session.commit()
-    except Exception:
-        db.session.rollback()
-        raise
-
-    return n_h, n_m
-"""
-
-HISTORY_TEMPLATE = """# ИСТОРИЯ ВЕРСИЙ И ЖУРНАЛА — СТАТИЧЕСКИЙ КОД В GIT.
-# Данные упакованы в base64. apply() доливает только недостающее.
-import base64 as _b64
-import json as _json
-from datetime import datetime as _dt
-
-_B64 = "{b64}"
-_DATA = _json.loads(_b64.b64decode(_B64).decode("utf-8"))
-
-_DATE_KEYS = ("released_at", "release_date", "date", "created_at", "updated_at", "ts")
-
-def _date(v):
-    if not isinstance(v, str) or not v:
-        return None
-    try:
-        return _dt.fromisoformat(v.replace(" ", "T"))
-    except Exception:
-        return None
-
-def apply():
-    from core.app import db
-    from modules.versions.models import Release
-    from modules.changelog.models import ChangelogEntry
-
-    cols_r = set(Release.__table__.columns.keys())
-    cols_c = set(ChangelogEntry.__table__.columns.keys())
-
-    have_r = {r.version for r in Release.query.all()}
-    added_r = 0
-    for rec in _DATA["releases"]:
-        if rec.get("version") in have_r:
-            continue
-        kw = {k: (_date(v) if k in _DATE_KEYS else v)
-              for k, v in rec.items() if k in cols_r and k != "id"}
-        kw.setdefault("is_current", False)
-        db.session.add(Release(**kw))
-        added_r += 1
-    if added_r:
-        try:
-            db.session.commit()
-        except Exception:
-            db.session.rollback()
-            raise
-
-    have_c = {(c.module, c.description) for c in ChangelogEntry.query.all()}
-    added_c = 0
-    for rec in _DATA["changelog"]:
-        if (rec.get("module"), rec.get("description")) in have_c:
-            continue
-        kw = {k: (_date(v) if k in _DATE_KEYS else v)
-              for k, v in rec.items() if k in cols_c and k != "id"}
-        db.session.add(ChangelogEntry(**kw))
-        added_c += 1
-    if added_c:
-        try:
-            db.session.commit()
-        except Exception:
-            db.session.rollback()
-            raise
-
-    if not Release.query.filter_by(is_current=True).first():
-        top = Release.query.order_by(Release.id.desc()).first()
-        if top:
-            top.is_current = True
-            try:
-                db.session.commit()
-            except Exception:
-                db.session.rollback()
-                raise
-
-    return added_r, added_c
-"""
-
-def extract_inner_raw(path):
-    txt = open(path, encoding="utf-8").read()
-    m = re.search(r"_RAW = '''(.*?)'''\s*\r?\n\s*_DATA", txt, re.S)
-    if not m:
-        m = re.search(r"_RAW = '''(.*?)'''", txt, re.S)
-    if not m:
-        return None, txt
-    return m.group(1), txt
-
-def normalize_json(s):
-    try:
-        json.loads(s)
-        return s
-    except Exception:
-        esc = []
-        for ch in s:
-            if ch == "\n":
-                esc.append("\\n")
-            elif ch == "\r":
-                esc.append("\\r")
-            elif ch == "\t":
-                esc.append("\\t")
-            elif ord(ch) < 32:
-                esc.append("\\u%04x" % ord(ch))
-            else:
-                esc.append(ch)
-        s2 = "".join(esc)
-        json.loads(s2)
-        return s2
-
-def repair_file(rel_path, template, label):
-    path = os.path.join(BASE, *rel_path.split("/"))
-    if not os.path.exists(path):
-        print("  ! %s: файл не найден" % label)
-        return False
-
-    inner, txt = extract_inner_raw(path)
-    if inner is None:
-        if "_B64 =" in txt:
-            print("  = %s: уже в безопасной упаковке base64" % label)
-            return True
-        print("  ! %s: не найден старый блок _RAW" % label)
-        return False
-
-    try:
-        inner = normalize_json(inner)
-    except Exception as e:
-        print("  ! %s: JSON внутри файла битый: %s" % (label, e))
-        return False
-
-    b64 = base64.b64encode(inner.encode("utf-8")).decode("ascii")
-    content = template.replace("{b64}", b64)
-    with open(path, "w", encoding="utf-8", newline="\n") as f:
-        f.write(content)
-    print("  + %s: переупакован в base64" % label)
-    return True
-
-ok1 = repair_file("modules/versions/docs_seed.py", DOCS_TEMPLATE, "docs_seed.py")
-ok2 = repair_file("modules/versions/history_seed.py", HISTORY_TEMPLATE, "history_seed.py")
-
-# Чтобы сообщения при старте службы были видны в journalctl
-cp = os.path.join(BASE, "core", "app.py")
-if os.path.exists(cp):
-    src = open(cp, encoding="utf-8").read()
-    pairs = [
-        ('print("  ДОКУМЕНТАЦИЯ: статей справки %d, разделов руководства %d" % (_h, _m))',
-         'print("  ДОКУМЕНТАЦИЯ: статей справки %d, разделов руководства %d" % (_h, _m), flush=True)'),
-        ('print("PREDUPREZHDENIE: документация не применена: %s" % _e)',
-         'print("PREDUPREZHDENIE: документация не применена: %s" % _e, flush=True)'),
-        ('print("  ISTORIYA: dobavleno relizov %d, zapisey zhurnala %d" % (_r, _c))',
-         'print("  ISTORIYA: dobavleno relizov %d, zapisey zhurnala %d" % (_r, _c), flush=True)'),
-        ('print("PREDUPREZHDENIE: istoriya relizov ne primenena: %s" % _e)',
-         'print("PREDUPREZHDENIE: istoriya relizov ne primenena: %s" % _e, flush=True)'),
-    ]
-    changed = False
-    for old, new in pairs:
-        if old in src and new not in src:
-            src = src.replace(old, new, 1)
-            changed = True
-    if changed:
-        with open(cp, "w", encoding="utf-8", newline="\n") as f:
-            f.write(src)
-        print("  ~ core/app.py: печать сообщений принудительно обновляется")
+# =========================================================================
+# ШАГ B. Релиз 0.12.9 + журнал — в СТАТИЧЕСКИЙ history_seed.py (едет через Git).
+# Никаких sync_*.py в корне: они в .gitignore и на сервер не приедут.
+# =========================================================================
+hp = os.path.join(BASE, "modules", "versions", "history_seed.py")
+if os.path.exists(hp):
+    hsrc = open(hp, encoding="utf-8").read()
+    if '"0.12.9"' not in hsrc:
+        rel_block = (
+            'RELEASES = [\n'
+            '{"version": "0.12.9", "release_date": "2026-11-18", "status": "released",\n'
+            ' "title": "Принудительная смена пароля работает на старых базах",\n'
+            ' "notes": "Колонка must_change_password добавлялась в модель позже, чем на мастерской/сервере уже жил admin, и SQLite подставил старым строкам 0 (False) — из-за этого система не требовала сменить пароль при первом входе, хотя код перехвата был верен. Разовая идемпотентная миграция выставляет флаг admin=1 на существующих базах; на чистых базаг seed и так ставит 1. Попутно исправлено сообщение про занятый порт (вместо %d теперь реальное число)."},\n'
+        )
+        hsrc = hsrc.replace("RELEASES = [\n", rel_block, 1)
+        cl_block = (
+            'CHANGELOG = [\n'
+            '{"date": "2026-11-18", "author": "синхронизация документации", "change_type": "fixed", "module": "core", "ticket": "", "description": "Принудительная смена пароля при первом входе заработала на существующих базах: разовая миграция выставляет must_change_password=1 для admin, которому колонка, добавленная позже модели, досталась со значением 0."},\n'
+            '{"date": "2026-11-18", "author": "синхронизация документации", "change_type": "fixed", "module": "core", "ticket": "", "description": "В сообщении про занятый порт в серверном режиме вместо литерала %d теперь подставляется реальный номер порта."},\n'
+        )
+        hsrc = hsrc.replace("CHANGELOG = [\n", cl_block, 1)
+        open(hp, "w", encoding="utf-8", newline="\n").write(hsrc)
+        print("  + history_seed.py: релиз 0.12.9 и 2 записи журнала дописаны (в Git)")
     else:
-        print("  = core/app.py: печать уже в порядке или якоря не найдены")
+        print("  = history_seed.py: 0.12.9 уже есть")
+else:
+    print("  ! history_seed.py не найден — сначала примени установщик 0.12.6+")
+
+# =========================================================================
+# ШАГ C. Мелкий фикс run.py: %d -> реальное число порта (f-строка).
+# =========================================================================
+rp = os.path.join(BASE, "run.py")
+if os.path.exists(rp):
+    src = open(rp, encoding="utf-8").read()
+    old = '"OSHIBKA: port %d zanat. Osvobodite ego ili izmenite APP_PORT v .env"'
+    new = 'f"OSHIBKA: port {config.PORT} zanat. Osvobodite ego ili izmenite APP_PORT v .env"'
+    if old in src:
+        src = src.replace(old, new, 1)
+        open(rp, "w", encoding="utf-8", newline="\n").write(src)
+        print("  ~ run.py: сообщение про занятый порт починено (%d -> число)")
+    elif new in src:
+        print("  = run.py: сообщение уже починено")
+    else:
+        print("  ! run.py: строка про порт не найдена — не страшно, это косметика")
 
 print("")
 print("=" * 60)
-if ok1 and ok2:
-    print("MARKER_END: справка и история переупакованы безопасно")
-else:
-    print("MARKER_END: есть проблемы, смотри строки выше")
+print("MARKER_END: миграция флага + релиз 0.12.9 в Git")
 print("=" * 60)
+print("Commit + Push:")
+print("  modules/versions/history_seed.py   (релиз 0.12.9)")
+print("  run.py                             (фикс %d)")
+print("  tools/installers/install.py")
+print("(миграция флага уже применена к ЭТОЙ базе прямо сейчас)")
 print("")
-print("Дальше:")
-print("1) GitHub Desktop: Commit to main -> Push origin")
-print("2) На VM: git reset --hard HEAD && git pull && ./update.sh")
+print("Затем на VM: ./update.sh  (привезёт релиз и применит миграцию к боевой базе)")

@@ -29,7 +29,7 @@ def main():
             note = " (port %d zanat, vzyal %d)" % (config.PORT, port)
     else:
         if _busy(port):
-            print("OSHIBKA: port %d zanat. Osvobodite ego ili izmenite APP_PORT v .env")
+            print(f"OSHIBKA: port {config.PORT} zanat. Osvobodite ego ili izmenite APP_PORT v .env")
             print("  V servernom rezhime port FIKSIROVANNYY - adres ne dolzhen ezhat'.")
             sys.exit(1)
 
