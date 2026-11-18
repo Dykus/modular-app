@@ -85,3 +85,7 @@ nav a.active{background:rgba(255,255,255,.28);box-shadow:inset 0 -2px 0 rgba(255
 .fprev table{font-size:13px;width:auto}
 .fprev td,.fprev th{padding:5px 10px}
 .fprev .res{font-weight:700;color:#1976d2}
+/* ghead-css: chelovecheskie podzagolovki grupp formuly */
+.ghead{font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:#5a6b85;margin:12px 0 4px;font-weight:700;width:100%}
+.fprev .res{font-weight:700;color:#1976d2}
+.fprev td,.fprev th{padding:5px 10px}

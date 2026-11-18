@@ -156,33 +156,70 @@ if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded"
 </form>
 </div>
 <script>
-/* fprev-v2 */
+/* fprev-v3 */
 (function(){
 var SAMPLE="{{ url_for('tables.sample', tid=t.id) }}";
 var SPREFIX="{{ url_for('tables.index') }}";
 var ATABLES={ {% for x in all_tables %}{{ x.id|tojson }}:{{ x.title|tojson }},{% endfor %} };
 function boot(){
 try{
-var old=document.getElementById('fprev');
-if(old&&old.parentNode)old.parentNode.removeChild(old);
+var old=document.getElementById('fprev');if(old&&old.parentNode)old.parentNode.removeChild(old);
 var kind=document.querySelector('[name="kind"]');
 if(!kind||!kind.form)return;
 var form=kind.form;
-var box=document.createElement('div');box.id='fprev';box.className='fprev';box.style.display='none';
-box.innerHTML='<h3>Живой пример: что посчитает формула</h3><div class="fprev-sum" id="fprevsum"></div><div id="fprevrows"></div><div class="note" id="fprevnote">Пример пересчитывается при каждом изменении полей и НЕ сохраняется до «Сохранить колонку».</div>';
-var host=kind.closest('fieldset')||kind.closest('.form-row')||kind.parentNode;
-host.parentNode.insertBefore(box,host.nextSibling);
 var ctype=form.querySelector('[name="col_type"]');
+function el(n){return form.querySelector('[name="'+n+'"]');}
+var F={op:el('op'),a:el('a'),b:el('b'),ifcol:el('if_col'),ifop:el('if_op'),ifval:el('if_val'),
+ thenv:el('then_v'),elsev:el('else_v'),reftable:el('ref_table'),mloc:el('match_local'),
+ mrem:el('match_remote'),show:el('show'),opts:el('options')};
+function head(){var d=document.createElement('div');d.className='ghead';return d;}
+var hA=head(),hI=head(),hR=head();
+if(F.op&&F.op.parentNode)F.op.parentNode.insertBefore(hA,F.op);
+if(F.ifcol&&F.ifcol.parentNode)F.ifcol.parentNode.insertBefore(hI,F.ifcol);
+if(F.reftable&&F.reftable.parentNode)F.reftable.parentNode.insertBefore(hR,F.reftable);
+var box=document.createElement('div');box.id='fprev';box.className='fprev';box.style.display='none';
+box.innerHTML='<h3>Живой пример: что посчитает формула</h3><div class="fprev-sum" id="fprevsum"></div><div id="fprevrows"></div><div class="note" id="fprevnote"></div>';
+var fs=kind.closest('fieldset')||kind.closest('.form-row')||kind.parentNode;
+fs.parentNode.insertBefore(box,fs.nextSibling);
+function vis(e,on){if(e)e.style.display=on?"":"none";}
+function regroup(){
+ var ty=ctype?ctype.value:"text";
+ var isList=(ty==="list"),isCalc=(ty==="computed"),isRef=(ty==="ref");
+ vis(F.opts,isList);
+ if(F.opts){var hd=F.opts.previousElementSibling;
+  if(hd&&/Варианты списка/.test(hd.textContent||""))vis(hd,isList);}
+ var fset=kind.closest('fieldset');if(fset)vis(fset,isCalc||isRef);
+ var k=kind.value||"arith";
+ vis(kind,isCalc);
+ var showAB=isCalc&&(k==="arith"||k==="concat"||k==="days");
+ vis(F.op,isCalc&&k==="arith");vis(F.a,showAB);vis(F.b,showAB);vis(hA,showAB);
+ if(k==="arith")hA.textContent="Выражение над колонками (или числами)";
+ else if(k==="concat")hA.textContent="Что склеиваем: сначала A, потом B";
+ else hA.textContent="Между какими датами считаем дни (B пусто — до сегодня)";
+ var showIf=isCalc&&k==="if";
+ vis(F.ifcol,showIf);vis(F.ifop,showIf);vis(F.ifval,showIf);vis(F.thenv,showIf);vis(F.elsev,showIf);vis(hI,showIf);
+ hI.textContent="Условие: если колонка … сравнение … значение … то ТО иначе ИНАЧЕ";
+ var showRef=isRef;
+ vis(F.reftable,showRef);vis(F.mloc,showRef);vis(F.mrem,showRef);vis(F.show,showRef);vis(hR,showRef);
+ hR.textContent="Ссылка (как ВПР): найди строку в другой таблице по совпадению ключа и покажи её колонку";
+}
 var sample=null,remotes={};
-function val(n){var e=form.querySelector('[name="'+n+'"]');return e?e.value:"";}
+function val(n){var e=el(n);return e?e.value:"";}
 function num(v){v=String(v==null?"":v).replace(/\s/g,"").replace(",",".");var n=parseFloat(v);return isNaN(n)?null:n;}
 function dparse(v){v=String(v||"").trim();var m=v.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);if(m)return new Date(+m[3],+m[2]-1,+m[1]);var m2=v.match(/^(\d{4})-(\d{2})-(\d{2})$/);if(m2)return new Date(+m2[1],+m2[2]-1,+m2[3]);return null;}
 function fnum(x){if(x===null||x===undefined)return "";if(x===Math.round(x))return String(x);return String(Math.round(x*100)/100);}
 function tok(t,dd){t=String(t==null?"":t).trim();if(Object.prototype.hasOwnProperty.call(dd,t))return String(dd[t]==null?"":dd[t]);return t;}
 function colTitle(k){if(sample){for(var i=0;i<sample.cols.length;i++)if(sample.cols[i].k===k)return sample.cols[i].t;}return k;}
 function isCol(k){if(sample){for(var i=0;i<sample.cols.length;i++)if(sample.cols[i].k===k)return true;}return false;}
-function lit(k){return isCol(k)?("«"+colTitle(k)+"»"):("«"+k+"» (литерал)");}
+function lit(k){k=String(k==null?"":k).trim();if(!k)return "…";return isCol(k)?("«"+colTitle(k)+"»"):("«"+k+"» (литерал)");}
 function readF(){return {kind:val('kind'),op:val('op'),a:val('a'),b:val('b'),col:val('if_col'),if_op:val('if_op'),value:val('if_val'),then:val('then_v'),else:val('else_v'),ref_table:val('ref_table'),match_local:val('match_local'),match_remote:val('match_remote'),show:val('show')};}
+function missing(f,ty){
+ if(ty==="ref"){var n=[];if(!+f.ref_table)n.push("таблицу");if(!String(f.match_local||"").trim())n.push("наш ключ");if(!String(f.match_remote||"").trim())n.push("ключ там");if(!String(f.show||"").trim())n.push("что показать");return n;}
+ if(f.kind==="arith"){var m=[];if(!String(f.a||"").trim())m.push("A");if(!String(f.b||"").trim())m.push("B");return m;}
+ if(f.kind==="days")return String(f.a||"").trim()?[]:["A"];
+ if(f.kind==="if")return String(f.col||"").trim()?[]:["колонку условия"];
+ return [];
+}
 function compute(ty,f,dd,remote){
  try{
   if(ty==="ref"){var want=String(dd[f.match_local]==null?"":dd[f.match_local]);if(!want)return "";
@@ -202,11 +239,11 @@ function compute(ty,f,dd,remote){
 function summary(ty,f){
  var SYM={add:"+",sub:"−",mul:"×",div:"÷"};
  var OW={eq:"=",ne:"≠",contains:"содержит",gt:">",lt:"<"};
- if(ty==="ref")return 'Из таблицы «'+(ATABLES[+f.ref_table]||("№"+f.ref_table))+'»: где её «'+(f.match_remote||"?")+'» равно нашей «'+(f.match_local||"?")+'», показать «'+(f.show||"?")+'»';
- if(f.kind==="arith")return lit(f.a)+" "+(SYM[f.op]||f.op||"?")+" "+lit(f.b);
+ if(ty==="ref")return 'Из таблицы «'+(ATABLES[+f.ref_table]||"…")+'»: где её «'+(f.match_remote||"…")+'» равно нашей «'+(f.match_local||"…")+'», показать «'+(f.show||"…")+'»';
+ if(f.kind==="arith")return lit(f.a)+" "+(SYM[f.op]||"…")+" "+lit(f.b);
  if(f.kind==="concat")return "склейка: "+lit(f.a)+" + "+lit(f.b);
  if(f.kind==="days")return "дней между "+lit(f.a)+" и "+(String(f.b||"").trim()?lit(f.b):"сегодня");
- if(f.kind==="if")return "если «"+(f.col||"?")+"» "+(OW[f.if_op||f.op]||"?")+" «"+(f.value||"")+"» то «"+(f.then||"")+"» иначе «"+(f.else||"")+"»";
+ if(f.kind==="if")return "если «"+(f.col||"…")+"» "+(OW[f.if_op||f.op]||"…")+" «"+(f.value||"…")+"» то «"+(f.then||"…")+"» иначе «"+(f.else||"…")+"»";
  return "выберите вид формулы";
 }
 function ensureRemote(rt){
@@ -218,26 +255,31 @@ function update(){
  var ty=ctype?ctype.value:"";
  if(ty!=="computed"&&ty!=="ref"){box.style.display="none";return;}
  box.style.display="";
- if(!sample){document.getElementById('fprevnote').textContent="Загружаю строки для примера…";return;}
+ var note=document.getElementById('fprevnote');
+ if(!sample){note.textContent="Загружаю строки для примера…";return;}
  var f=readF();
+ var miss=missing(f,ty);
  var rt=+f.ref_table||0;
  if(ty==="ref")ensureRemote(rt);
  var remote=(ty==="ref"&&remotes[rt])?remotes[rt].rows:[];
  document.getElementById('fprevsum').textContent=summary(ty,f);
  var rows=sample.rows;
- if(!rows.length){document.getElementById('fprevrows').innerHTML='<div class="note">Строк пока нет — пример появится с первой строкой.</div>';return;}
+ if(!rows.length){document.getElementById('fprevrows').innerHTML='<div class="note">Строк пока нет — пример появится с первой строкой.</div>';note.textContent="";return;}
  var h='<table><tr><th>Строка</th><th>Результат</th></tr>';
  for(var i=0;i<rows.length;i++){
   var lab=[];for(var j=0;j<Math.min(2,sample.cols.length);j++){var k=sample.cols[j].k;var v=rows[i].data[k];if(v)lab.push(String(v));}
-  h+='<tr><td>'+(lab.join(" · ")||("№"+rows[i].id))+'</td><td class="res">'+(compute(ty,f,rows[i].data,remote)||"∅")+'</td></tr>';
+  var res=miss.length?"…":(compute(ty,f,rows[i].data,remote)||"—");
+  h+='<tr><td>'+(lab.join(" · ")||("№"+rows[i].id))+'</td><td class="res">'+res+'</td></tr>';
  }
  document.getElementById('fprevrows').innerHTML=h+"</table>";
+ note.textContent=miss.length?("Не хватает: "+miss.join(", ")+". Заполните — и пример посчитается сразу.")
+  :"Пример пересчитывается при каждом изменении полей и НЕ сохраняется до «Сохранить колонку».";
 }
 fetch(SAMPLE).then(function(r){return r.json();}).then(function(j){sample=j;update();}).catch(function(){
  box.style.display="";document.getElementById('fprevnote').textContent="Не удалось загрузить строки для примера (эндпоинт /sample).";});
-form.addEventListener("input",update);
-form.addEventListener("change",update);
-update();
+form.addEventListener("input",function(){regroup();update();});
+form.addEventListener("change",function(){regroup();update();});
+regroup();update();
 }catch(err){
  var b2=document.createElement('div');b2.className='fprev';b2.style.display='';
  b2.innerHTML='<div class="note" style="color:#c0392b;font-weight:600">Превью не стартовало: '+String(err&&err.message?err.message:err)+'</div>';
