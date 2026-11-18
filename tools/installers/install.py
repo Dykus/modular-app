@@ -8,114 +8,102 @@ while not os.path.isfile(os.path.join(d, "run.py")):
 BASE = d
 print("ROOT: " + BASE)
 
-NEW_HEADER = '''
-<div class="tb-head thead-v2">
-  <div class="tb-tabs">
-    <a class="tb-tab tswitch" href="{{ url_for('tables.sheet_view', tid=t.id) }}">📊 Лист (Excel-вид)</a>
-    {% for x in tabs %}<a class="tb-tab{% if x.id == t.id %} on{% endif %}" href="{{ url_for('tables.view', tid=x.id) }}">{{ x.title }}</a>{% endfor %}
-  </div>
-  <div class="tb-title">
-    <h2>{{ t.title }}</h2>
-    <div class="tb-acts">
-      <a class="btn" href="{{ url_for('tables.row_edit', tid=t.id, rid='new') }}">＋ Строка</a>
-      <a class="btn gray" href="{{ url_for('tables.import_xlsx', tid=t.id) }}">⬇ Импорт Excel</a>
-      <a class="btn gray{% if mode == 'rows' %} on{% endif %}" href="{{ url_for('tables.view', tid=t.id) }}">Строки</a>
-      <a class="btn gray{% if mode == 'trash' %} on{% endif %}" href="{{ url_for('tables.view', tid=t.id, mode='trash') }}">🗑 Корзина ({{ trash_count }})</a>
-      <a class="btn gray{% if mode == 'history' %} on{% endif %}" href="{{ url_for('tables.view', tid=t.id, mode='history') }}">🕓 История клеток</a>
-      {% if can('tables.manage') %}
-      <a class="btn gray" href="{{ url_for('tables.cols', tid=t.id) }}">⚙ Колонки и формулы</a>
-      <a class="btn gray" href="{{ url_for('tables.access', tid=t.id) }}">🛡 Доступ (роли × колонки)</a>
-      <form method="post" action="{{ url_for('tables.table_delete', tid=t.id) }}" class="tb-danger"
-            onsubmit="return confirm('Удалить таблицу целиком? Будет создана резервная копия в data/backups/.');">
-        <button class="btn red" type="submit">🗑 Удалить таблицу</button>
-      </form>
-      {% endif %}
-    </div>
-  </div>
-</div>
-'''
+NEWSCRIPT = r'''<script>
+/* cbuild-v3 */
+(function(){
+function JP(s){try{var v=JSON.parse(s);return Array.isArray(v)?v:[];}catch(e){return [];}}
+function escq(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;");}
+function boot(){
+var box=document.getElementById("cbrows");
+var ta=document.querySelector('textarea[name="counters"]');
+var add=document.getElementById("cbadd");
+if(!box||!ta){return;}
+try{
+var CCOLS=[{% for c in cols %}{k:{{ c.key|tojson }},t:{{ c.title|tojson }},ty:{{ c.col_type|tojson }},op:JP({{ c.options|tojson }})},{% endfor %}];
+function colByKey(k){for(var i=0;i<CCOLS.length;i++){if(CCOLS[i].k===k)return CCOLS[i];}return null;}
+function parse(){var out=[];var lines=ta.value.split("\n");
+for(var i=0;i<lines.length;i++){var p=lines[i].split("|");
+if(p.length>=3&&p[0].trim()&&p[2].trim()){out.push({title:p[0].trim(),func:(p[1]||"count").trim(),col:p[2].trim(),wcol:(p[3]||"").trim(),wval:(p[4]||"").trim()});}}
+return out;}
+var data=parse();
+function colOpts(sel){var h="";for(var i=0;i<CCOLS.length;i++){var c=CCOLS[i];h+='<option value="'+c.k+'"'+(c.k===sel?" selected":"")+'>'+escq(c.t)+'</option>';}return h;}
+function wcolOpts(sel){var h='<option value="">— без условия —</option>';for(var i=0;i<CCOLS.length;i++){var c=CCOLS[i];h+='<option value="'+c.k+'"'+(c.k===sel?" selected":"")+'>'+escq(c.t)+'</option>';}return h;}
+function valField(r){var c=colByKey(r.wcol);
+if(c&&c.ty==="list"){var h='<select class="cb-val"><option value="">—</option>';var ops=c.op||[];for(var i=0;i<ops.length;i++){h+='<option'+(ops[i]===r.wval?" selected":"")+'>'+escq(ops[i])+'</option>';}return h+'</select>';}
+return '<input type="text" class="cb-val" value="'+escq(r.wval)+'" placeholder="значение">';}
+function render(){
+if(!data.length){box.innerHTML='<div class="note">Счётчиков пока нет — нажми «＋ Добавить счётчик».</div>';return;}
+var h="";
+for(var i=0;i<data.length;i++){var r=data[i];
+h+='<div class="cb-row" data-i="'+i+'">'
++'<input type="text" class="cb-title" value="'+escq(r.title)+'" placeholder="Название карточки">'
++'<select class="cb-func"><option value="count"'+(r.func==="count"?" selected":"")+'>сколько строк</option><option value="sum"'+(r.func==="sum"?" selected":"")+'>сумма чисел</option></select>'
++'<select class="cb-col">'+colOpts(r.col)+'</select>'
++'<select class="cb-wcol">'+wcolOpts(r.wcol)+'</select>'
++valField(r)
++'<button type="button" class="btn red cb-del" title="Убрать счётчик">✕</button></div>';}
+box.innerHTML=h;}
+function sync(){var out=[];for(var i=0;i<data.length;i++){var r=data[i];out.push([r.title,r.func,r.col,r.wcol,r.wval].join("|"));}ta.value=out.join("\n");}
+box.addEventListener("input",function(e){var row=e.target.closest(".cb-row");if(!row)return;var r=data[+row.getAttribute("data-i")];if(!r)return;
+if(e.target.classList.contains("cb-title")){r.title=e.target.value;}
+else if(e.target.classList.contains("cb-val")){r.wval=e.target.value;}
+sync();});
+box.addEventListener("change",function(e){var row=e.target.closest(".cb-row");if(!row)return;var r=data[+row.getAttribute("data-i")];if(!r)return;
+if(e.target.classList.contains("cb-func")){r.func=e.target.value;}
+else if(e.target.classList.contains("cb-col")){r.col=e.target.value;}
+else if(e.target.classList.contains("cb-wcol")){r.wcol=e.target.value;r.wval="";render();}
+else if(e.target.classList.contains("cb-val")){r.wval=e.target.value;}
+sync();});
+box.addEventListener("click",function(e){var b=e.target.closest(".cb-del");if(!b)return;var row=b.closest(".cb-row");if(!row)return;
+data.splice(+row.getAttribute("data-i"),1);render();sync();});
+if(add){add.addEventListener("click",function(){data.push({title:"",func:"count",col:CCOLS.length?CCOLS[0].k:"",wcol:"",wval:""});render();sync();});}
+if(!ta.closest("details")){var det=document.createElement("details");det.className="cb-raw";
+var sum=document.createElement("summary");sum.textContent="Технический формат (строки через |) — заполняется сам";
+ta.parentNode.insertBefore(det,ta);det.appendChild(sum);det.appendChild(ta);}
+render();sync();
+}catch(err){
+box.innerHTML='<div class="note" style="color:#c0392b;font-weight:600">Конструктор не запустился: '+escq(err&&err.message?err.message:err)+'. Техническое поле ниже работает по-прежнему.</div>';
+}
+}
+if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded",boot);}else{boot();}
+})();
+</script>'''
 
-vp = os.path.join(BASE, "modules", "tables", "templates", "tables", "view.html")
-s = open(vp, encoding="utf-8").read()
-if "thead-v2" in s:
-    print("SKIP view.html: header v2 present")
+cp = os.path.join(BASE, "modules", "tables", "templates", "tables", "cols.html")
+s = open(cp, encoding="utf-8").read()
+if "cbuild-v3" in s:
+    print("SKIP cols.html: cbuild-v3 script present")
 else:
-    m = re.search(r"({%\s*block\s+content\s*%})([\s\S]*?)({%\s*if\s+counters\s*%})", s)
-    if m:
-        s = s[:m.end(1)] + "\n" + NEW_HEADER.strip("\n") + "\n" + s[m.start(3):]
-        open(vp, "w", encoding="utf-8", newline="\n").write(s)
-        print("PATCH view.html: header rebuilt (tabs strip + title row + grouped actions)")
+    pat = re.compile(r'(<div id="cbuilder"[\s\S]*?</div>\s*)<script>[\s\S]*?</script>')
+    s2, n = pat.subn(lambda m: m.group(1) + NEWSCRIPT, s, count=1)
+    if n:
+        open(cp, "w", encoding="utf-8", newline="\n").write(s2)
+        print("PATCH cols.html: counter builder script rewritten (cbuild-v3, self-diagnosing)")
     else:
-        print("WARN view.html: block-content/counters anchors not found")
-
-sp = os.path.join(BASE, "web", "static", "css", "style.css")
-c = open(sp, encoding="utf-8").read()
-if "tables-head-v2" not in c:
-    c = c.rstrip("\n") + '''
-/* tables-head-v2: lenta vkladok + zagolovok s deystviyami spava */
-.tb-head{margin-bottom:14px}
-.tb-tabs{display:flex;gap:6px;flex-wrap:wrap;align-items:center;background:rgba(102,126,234,.08);
- border:1px solid #e1e6ef;border-radius:10px;padding:6px;margin-bottom:12px}
-.tb-tab{padding:7px 14px;border-radius:8px;font-size:13px;font-weight:600;color:#5a6b85;
- text-decoration:none;background:transparent;border:1px solid transparent;transition:.15s;white-space:nowrap}
-.tb-tab:hover{background:#fff;color:#2c3e50;box-shadow:0 2px 6px rgba(20,30,60,.08)}
-.tb-tab.on{background:#667eea;color:#fff;box-shadow:0 3px 10px rgba(102,126,234,.35)}
-.tb-tab.tswitch{border:1px dashed #8a93a6;color:#41506b}
-.tb-tab.tswitch:hover{border-style:solid;background:#fff}
-.tb-title{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px}
-.tb-title h2{margin-right:auto}
-.tb-acts{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-.tb-acts .btn{padding:8px 13px;font-size:13px}
-.tb-acts .btn.on{background:#5566d8}
-.tb-danger{display:inline-flex;margin-left:6px}
-@media (max-width:820px){.tb-tabs{overflow-x:auto;flex-wrap:nowrap}.tb-title{flex-direction:column;align-items:flex-start}}
-'''
-    open(sp, "w", encoding="utf-8", newline="\n").write(c)
-    print("PATCH style.css: tables-head-v2 styles")
-else:
-    print("SKIP style.css: tables-head-v2 present")
-
-dp = os.path.join(BASE, "web", "static", "css", "dark.css")
-c = open(dp, encoding="utf-8").read()
-if "tables-head-v2-dark" not in c:
-    c = c.rstrip("\n") + '''
-/* tables-head-v2-dark */
-body.dark .tb-tabs{background:rgba(142,162,255,.08);border-color:#3a3f4b}
-body.dark .tb-tab{color:#9aa3b2}
-body.dark .tb-tab:hover{background:#23262e;color:#e7eaf0}
-body.dark .tb-tab.on{background:#8ea2ff;color:#15171c}
-body.dark .tb-tab.tswitch{border-color:#4a5060;color:#c4ccd8}
-body.dark .tb-tab.tswitch:hover{background:#23262e}
-'''
-    open(dp, "w", encoding="utf-8", newline="\n").write(c)
-    print("PATCH dark.css: tables-head-v2 dark styles")
-else:
-    print("SKIP dark.css: tables-head-v2-dark present")
+        print("WARN cols.html: cbuilder div+script block not found")
 
 hp = os.path.join(BASE, "modules", "versions", "history_seed.py")
 v = open(hp, encoding="utf-8").read()
 m = re.search(r'_B64\s*=\s*"([^"]*)"', v)
 data = json.loads(base64.b64decode(m.group(1)).decode("utf-8"))
-if not any(r.get("version") == "0.13.8" for r in data["releases"]):
-    data["releases"].insert(0, {"version": "0.13.8", "release_date": "2026-11-18", "status": "released",
-        "title": "Форма: аккуратная шапка таблицы",
-        "notes": "Шапка вида «Форма» пересобрана: переключатель листа и вкладки таблиц стали единой лентой с подсветкой активной вкладки, заголовок таблицы и панель действий выстроены в одну строку (действия справа), режимы Строки/Корзина/История подсвечиваются как активные, опасное «Удалить таблицу» отделено от остальных кнопок и спрашивает подтверждение. Единые отступы и скругления в светлой и тёмной темах; на узких экранах лента вкладок прокручивается горизонтально вместо переносов вразнобой."})
-    data["changelog"].insert(0, {"date": "2026-11-18", "author": "синхронизация документации", "change_type": "changed",
+if not any(r.get("version") == "0.13.12" for r in data["releases"]):
+    data["releases"].insert(0, {"version": "0.13.12", "release_date": "2026-11-18", "status": "released",
+        "title": "Конструктор счётчиков переписан начисто и сам показывает ошибки",
+        "notes": "Скрипт визуального конструктора счётчиков переписан одним цельным блоком вместо накопленных точечных заплат: инициализация по готовности DOM, безопасный разбор опций колонок, обработчики добавления/удаления/правки строк-счётчиков внутри защищённого блока. Если конструктор всё же не сможет стартовать, он пишет текст своей ошибки красным прямо в блок счётчиков, а техническое поле продолжает работать — диагностика больше не требует консоли."})
+    data["changelog"].insert(0, {"date": "2026-11-18", "author": "синхронизация документации", "change_type": "fixed",
         "module": "tables", "ticket": "",
-        "description": "Форма: шапка таблицы пересобрана в ленту вкладок + строку заголовка с группированными действиями; активные режимы подсвечены, опасное удаление отделено и с подтверждением; аккуратный вид в обеих темах и на мобильных."})
+        "description": "Конструктор счётчиков: скрипт переписан начисто (cbuild-v3) с самодиагностикой — ошибка старта видна на странице красным текстом, кнопка «＋ Добавить счётчик» и строки-счётчики работают внутри защищённой инициализации."})
     nb = base64.b64encode(json.dumps(data, ensure_ascii=False).encode("utf-8")).decode("ascii")
     v = v[:m.start(1)] + nb + v[m.end(1):]
     open(hp, "w", encoding="utf-8", newline="\n").write(v)
-    print("PATCH history_seed.py: release 0.13.8")
+    print("PATCH history_seed.py: release 0.13.12")
 else:
-    print("SKIP history_seed.py: 0.13.8 present")
+    print("SKIP history_seed.py: 0.13.12 present")
 
 print("=" * 60)
-print("MARKER_END: tables header beautified (0.13.8)")
+print("MARKER_END: counter builder rewritten self-diagnosing (0.13.12)")
 print("=" * 60)
 print("Commit + Push:")
-print("  modules/tables/templates/tables/view.html")
-print("  web/static/css/style.css")
-print("  web/static/css/dark.css")
+print("  modules/tables/templates/tables/cols.html")
 print("  modules/versions/history_seed.py")
 print("  tools/installers/install.py")

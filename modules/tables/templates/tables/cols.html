@@ -82,6 +82,74 @@
 <div class="info">
 <h3>Счётчики-карточки над таблицей</h3>
 <form method="post" action="{{ url_for('tables.counters_save', tid=t.id) }}">
+<div id="cbuilder" class="cbuilder"><!-- cbuilder-v1 -->
+  <div class="cb-head"><span>Название карточки</span><span>Что считаем</span><span>Колонка</span><span>Условие: колонка</span><span>Условие: значение</span><span></span></div>
+  <div id="cbrows"></div>
+  <div class="cb-foot">
+    <button type="button" class="btn gray" id="cbadd">＋ Добавить счётчик</button>
+    <span class="note" style="margin:0">Условие необязательно: без него считаются все строки. Для «сколько строк» колонка — формальность, для «сумма чисел» выбирай числовую.</span>
+  </div>
+</div>
+<script>
+/* cbuild-v3 */
+(function(){
+function JP(s){try{var v=JSON.parse(s);return Array.isArray(v)?v:[];}catch(e){return [];}}
+function escq(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;");}
+function boot(){
+var box=document.getElementById("cbrows");
+var ta=document.querySelector('textarea[name="counters"]');
+var add=document.getElementById("cbadd");
+if(!box||!ta){return;}
+try{
+var CCOLS=[{% for c in cols %}{k:{{ c.key|tojson }},t:{{ c.title|tojson }},ty:{{ c.col_type|tojson }},op:JP({{ c.options|tojson }})},{% endfor %}];
+function colByKey(k){for(var i=0;i<CCOLS.length;i++){if(CCOLS[i].k===k)return CCOLS[i];}return null;}
+function parse(){var out=[];var lines=ta.value.split("\n");
+for(var i=0;i<lines.length;i++){var p=lines[i].split("|");
+if(p.length>=3&&p[0].trim()&&p[2].trim()){out.push({title:p[0].trim(),func:(p[1]||"count").trim(),col:p[2].trim(),wcol:(p[3]||"").trim(),wval:(p[4]||"").trim()});}}
+return out;}
+var data=parse();
+function colOpts(sel){var h="";for(var i=0;i<CCOLS.length;i++){var c=CCOLS[i];h+='<option value="'+c.k+'"'+(c.k===sel?" selected":"")+'>'+escq(c.t)+'</option>';}return h;}
+function wcolOpts(sel){var h='<option value="">— без условия —</option>';for(var i=0;i<CCOLS.length;i++){var c=CCOLS[i];h+='<option value="'+c.k+'"'+(c.k===sel?" selected":"")+'>'+escq(c.t)+'</option>';}return h;}
+function valField(r){var c=colByKey(r.wcol);
+if(c&&c.ty==="list"){var h='<select class="cb-val"><option value="">—</option>';var ops=c.op||[];for(var i=0;i<ops.length;i++){h+='<option'+(ops[i]===r.wval?" selected":"")+'>'+escq(ops[i])+'</option>';}return h+'</select>';}
+return '<input type="text" class="cb-val" value="'+escq(r.wval)+'" placeholder="значение">';}
+function render(){
+if(!data.length){box.innerHTML='<div class="note">Счётчиков пока нет — нажми «＋ Добавить счётчик».</div>';return;}
+var h="";
+for(var i=0;i<data.length;i++){var r=data[i];
+h+='<div class="cb-row" data-i="'+i+'">'
++'<input type="text" class="cb-title" value="'+escq(r.title)+'" placeholder="Название карточки">'
++'<select class="cb-func"><option value="count"'+(r.func==="count"?" selected":"")+'>сколько строк</option><option value="sum"'+(r.func==="sum"?" selected":"")+'>сумма чисел</option></select>'
++'<select class="cb-col">'+colOpts(r.col)+'</select>'
++'<select class="cb-wcol">'+wcolOpts(r.wcol)+'</select>'
++valField(r)
++'<button type="button" class="btn red cb-del" title="Убрать счётчик">✕</button></div>';}
+box.innerHTML=h;}
+function sync(){var out=[];for(var i=0;i<data.length;i++){var r=data[i];out.push([r.title,r.func,r.col,r.wcol,r.wval].join("|"));}ta.value=out.join("\n");}
+box.addEventListener("input",function(e){var row=e.target.closest(".cb-row");if(!row)return;var r=data[+row.getAttribute("data-i")];if(!r)return;
+if(e.target.classList.contains("cb-title")){r.title=e.target.value;}
+else if(e.target.classList.contains("cb-val")){r.wval=e.target.value;}
+sync();});
+box.addEventListener("change",function(e){var row=e.target.closest(".cb-row");if(!row)return;var r=data[+row.getAttribute("data-i")];if(!r)return;
+if(e.target.classList.contains("cb-func")){r.func=e.target.value;}
+else if(e.target.classList.contains("cb-col")){r.col=e.target.value;}
+else if(e.target.classList.contains("cb-wcol")){r.wcol=e.target.value;r.wval="";render();}
+else if(e.target.classList.contains("cb-val")){r.wval=e.target.value;}
+sync();});
+box.addEventListener("click",function(e){var b=e.target.closest(".cb-del");if(!b)return;var row=b.closest(".cb-row");if(!row)return;
+data.splice(+row.getAttribute("data-i"),1);render();sync();});
+if(add){add.addEventListener("click",function(){data.push({title:"",func:"count",col:CCOLS.length?CCOLS[0].k:"",wcol:"",wval:""});render();sync();});}
+if(!ta.closest("details")){var det=document.createElement("details");det.className="cb-raw";
+var sum=document.createElement("summary");sum.textContent="Технический формат (строки через |) — заполняется сам";
+ta.parentNode.insertBefore(det,ta);det.appendChild(sum);det.appendChild(ta);}
+render();sync();
+}catch(err){
+box.innerHTML='<div class="note" style="color:#c0392b;font-weight:600">Конструктор не запустился: '+escq(err&&err.message?err.message:err)+'. Техническое поле ниже работает по-прежнему.</div>';
+}
+}
+if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded",boot);}else{boot();}
+})();
+</script>
 <textarea name="counters" rows="4" style="width:100%">{{ counters_text }}</textarea>
 <p class="note">По строке на счётчик, формат: Название|sum или count|ключ колонки|ключ условия|значение условия. sum — сумма чисел, count — количество строк. Пример: <code>В работе, сумма|sum|sum|status|В работе</code></p>
 <button class="btn" type="submit">Сохранить счётчики</button>

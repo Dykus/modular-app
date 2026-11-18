@@ -42,3 +42,6 @@ body.dark .tb-tab:hover{background:#23262e;color:#e7eaf0}
 body.dark .tb-tab.on{background:#8ea2ff;color:#15171c}
 body.dark .tb-tab.tswitch{border-color:#4a5060;color:#c4ccd8}
 body.dark .tb-tab.tswitch:hover{background:#23262e}
+/* cbuilder-dark */
+body.dark .cb-row input,body.dark .cb-row select{background:#1a1d24;border-color:#3a3f4b;color:#e7eaf0}
+body.dark .cb-head{color:#9aa3b2}

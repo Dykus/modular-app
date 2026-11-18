@@ -65,3 +65,16 @@ nav a.active{background:rgba(255,255,255,.28);box-shadow:inset 0 -2px 0 rgba(255
 .tb-acts .btn.on{background:#5566d8}
 .tb-danger{display:inline-flex;margin-left:6px}
 @media (max-width:820px){.tb-tabs{overflow-x:auto;flex-wrap:nowrap}.tb-title{flex-direction:column;align-items:flex-start}}
+/* cbuilder-v1: vizual'nyj konstruktor schetchikov */
+.cbuilder{margin:10px 0 12px}
+.cb-head{display:grid;grid-template-columns:1.4fr .95fr 1fr 1fr 1fr 36px;gap:8px;font-size:11px;
+ text-transform:uppercase;color:#5a6b85;margin-bottom:6px;letter-spacing:.3px}
+.cb-row{display:grid;grid-template-columns:1.4fr .95fr 1fr 1fr 1fr 36px;gap:8px;margin-bottom:8px;align-items:center}
+.cb-row input,.cb-row select{padding:7px 9px;border:1px solid #d6dbe4;border-radius:7px;font:inherit;background:#fff;width:100%}
+.cb-row .cb-del{padding:6px 9px}
+.cb-foot{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.cb-raw{margin-top:8px}
+.cb-raw summary{cursor:pointer;font-size:12px;color:#8a93a6}
+.cb-raw textarea{width:100%;margin-top:6px}
+@media (max-width:820px){.cb-head{display:none}.cb-row{grid-template-columns:1fr 1fr}
+ .cb-row .cb-del{grid-column:2;justify-self:end}}
