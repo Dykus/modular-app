@@ -57,12 +57,14 @@
 {% else %}
 <div class="tscroll"><table>
 <thead>
-<tr>{% for c in cols %}<th>{{ c.title }}{% if c.col_type in ('computed','ref') %} ⚙{% elif can_edit_col(m, c.key) %} ✎{% else %} 🔒{% endif %}{% if c.grp %}<div class="note">{{ c.grp }}</div>{% endif %}</th>{% endfor %}<th>Действия</th></tr>
+{% set groups = [] %}{% for c in cols %}{% if c.grp and c.grp not in groups %}{% if groups.append(c.grp) %}{% endif %}{% endif %}{% endfor %}
+<tr>
+{% for c in cols %}{% set gi = (groups.index(c.grp) % 6) if c.grp else -1 %}<th class="thc ty-{{ c.col_type }}{% if gi >= 0 %} hasgrp{% endif %}"{% if gi >= 0 %} style="--gc:var(--shg{{ gi }}c);--gb:var(--shg{{ gi }}b)"{% endif %}><span class="tht">{{ c.title }}{% if c.col_type in ('computed','ref') %} ⚙{% elif can_edit_col(m, c.key) %} ✎{% else %} 🔒{% endif %}</span>{% if c.grp %}<span class="thg">{{ c.grp }}</span>{% else %}<span class="thg">&nbsp;</span>{% endif %}</th>{% endfor %}<th>Действия</th></tr> <!-- form-th-v1 -->
 </thead>
 <tbody>
 {% for line in disp %}
 <tr>
-{% for c in cols %}<td>{{ line.cells[c.key] }}</td>{% endfor %}
+{% for c in cols %}<td class="ty-{{ c.col_type }}">{{ line.cells[c.key] }}</td>{% endfor %}
 <td>
 <a class="btn" style="padding:4px 8px;font-size:12px" href="{{ url_for('tables.row_edit', tid=t.id, rid=line.row.id) }}">Изменить</a>
 {% if m['delete'] or m['edit'] is none %}
