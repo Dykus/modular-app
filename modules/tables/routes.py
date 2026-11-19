@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, abort
+from flask import Blueprint, render_template, request, redirect, url_for, flash, abort, session
 from flask_login import current_user
 from core.app import db
 from core.auth import perm
@@ -575,12 +575,12 @@ def import_json():
         tmppath = os.path.join(_texp_tmp_dir(), tmpname)
         with open(tmppath, "w", encoding="utf-8") as tf:
             tf.write(text)
-        request.session["texp_file"] = tmpname
+        session["texp_file"] = tmpname
         return render_template("tables/import_table.html", step="confirm", summ=summ, done=None)
 
     # Shag 2: primenenie.
     mode = request.form.get("mode") or "new"
-    tmpname = request.session.pop("texp_file", None)
+    tmpname = session.pop("texp_file", None)
     if not tmpname:
         flash("Сессия истекла — загрузите файл заново.")
         return redirect(url_for("tables.import_json"))
