@@ -61,3 +61,5 @@ body.dark .gchip .gx{color:#f783ac}
 body.dark .sbtoast{background:#1d2733;border-color:#2b3646;border-left-color:#27ae60;color:#e7eaf0}
 /* totop-dark */
 body.dark #totop{background:linear-gradient(135deg,#3b4270,#4a2f63);color:#e7eaf0;box-shadow:0 8px 20px rgba(0,0,0,.5)}
+/* printbanner-dark */
+body.dark .print-banner{background:#33230f;border-color:#5c430f;border-left-color:#e8930c;color:#ffd97a}

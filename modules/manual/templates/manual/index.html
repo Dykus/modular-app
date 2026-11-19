@@ -17,6 +17,15 @@
 </div>
 
 {% if print_mode %}
+<div class="print-banner no-print">
+  <b>Это версия для печати.</b> Меню, кнопки и правка на бумаге скрыты. Диалог печати открывается сам; если закрыли его — нажмите кнопку или Ctrl+P.
+  <button class="btn" onclick="window.print()">🖨 Печать сейчас</button>
+</div>
+<script>
+/* printfix-v1 */
+window.addEventListener("load", function(){ setTimeout(function(){ window.print(); }, 400); });
+</script>
+
 <div class="print-only" style="text-align:center;margin:0 0 24px">
 <h2 style="color:#000">{{ app_title }}</h2>
 <p style="color:#000">Руководство по эксплуатации · версия {{ app_version }} · печать от {{ now_str }}</p>
