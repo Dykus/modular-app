@@ -9,12 +9,12 @@ from modules.tables.service import (jload, num, compute_value, user_access, role
 import json, os, datetime, re, uuid
 
 TYPE_LABELS = {
-    "text": "Текст",
-    "number": "Число",
-    "date": "Дата",
-    "list": "Список",
-    "computed": "Вычисляемая (формула)",
-    "ref": "Ссылка на другую таблицу",
+ "text":  "текст",
+ "number":  "число",
+ "date":  "дату",
+ "list":  "выбирать из списка",
+ "computed":  "считать самому (формула)",
+ "ref":  "брать из другой таблицы",
 }
 TYPE_CHOICES = list(TYPE_LABELS.items())
 
@@ -36,7 +36,13 @@ def visible_tables():
 @tables_bp.route("/")
 @perm("tables.view")
 def index():
-    return render_template("tables/index.html", tables=visible_tables())
+    tl = []
+    try:
+        with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "templates.json"), "r", encoding="utf-8") as f:
+            tl = json.load(f)
+    except Exception:
+        tl = []
+    return render_template("tables/index.html", tables=visible_tables(), templates_lib=tl)
 
 @tables_bp.route("/new", methods=["POST"])
 @perm("tables.manage")
@@ -747,3 +753,74 @@ def import_json():
         return redirect(url_for("tables.import_json"))
 
     return render_template("tables/import_table.html", step="done", summ=summ, done=report)
+
+
+# ru2lat-v1: russkoe nazvanie -> latin key (avtogeneracija kluchej).
+_RU_LAT = {'а':'a','б':'b','в':'v','г':'g','д':'d','е':'e','ё':'yo','ж':'zh','з':'z',
+ 'и':'i','й':'y','к':'k','л':'l','м':'m','н':'n','о':'o','п':'p','р':'r',
+ 'с':'s','т':'t','у':'u','ф':'f','х':'h','ц':'ts','ч':'ch','ш':'sh','щ':'sch',
+ 'ъ':'','ы':'y','ь':'','э':'e','ю':'yu','я':'ya'}
+def translit_ru_to_latin(text):
+    out = ''.join(_RU_LAT.get(c.lower(), c.lower()) if c.isalpha() else '_' for c in str(text or "").strip())
+    out = re.sub(r'_+', '_', out).strip('_').lower()
+    return out or "unnamed"
+def unique_key(base, taken):
+    k = base; i = 2
+    while k in taken:
+        k = "%s_%d" % (base, i); i += 1
+    return k
+
+
+# tpl-new-v1: sozdat' tablicu iz gotovogo shablona (.json).
+@tables_bp.route("/new-from-template/<string:tpl_key>", methods=["POST"])
+@perm("tables.manage")
+def new_from_template(tpl_key):
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "templates.json")
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            docs = json.load(f)
+    except Exception as e:
+        flash("Не удалось прочитать библиотеку шаблонов: " + str(e)[:150])
+        return redirect(url_for("tables.index"))
+    doc = None
+    for x in docs:
+        if str(x.get("key") or "") == tpl_key:
+            doc = x; break
+    if doc is None:
+        flash("Шаблон «%s» не найден." % tpl_key)
+        return redirect(url_for("tables.index"))
+    title = (request.form.get("title") or "").strip() or str(doc.get("title") or tpl_key)
+    taken = {t.key for t in CustomTable.query.all()}
+    key = unique_key(translit_ru_to_latin(title), taken)
+    mx = db.session.query(db.func.max(CustomTable.order)).scalar() or 0
+    t = CustomTable(key=key, title=title, order=mx + 1, created_by=who() + " (шаблон)")
+    db.session.add(t); db.session.flush()
+    cols_doc = doc.get("columns") or []
+    for cd in cols_doc:
+        db.session.add(TableColumn(table_id=t.id, key=str(cd.get("key")), title=str(cd.get("title") or cd.get("key")),
+                                   col_type=str(cd.get("col_type") or "text"), grp=str(cd.get("grp") or ""),
+                                   options=json.dumps(cd.get("options") or [], ensure_ascii=False),
+                                   formula=json.dumps(cd.get("formula") or {}, ensure_ascii=False),
+                                   order=int(cd.get("order") or 0)))
+    ctr_doc = (doc.get("table") or {}).get("counters") or doc.get("counters") or []
+    t.counters = json.dumps(ctr_doc, ensure_ascii=False)
+    acc_doc = doc.get("access") or []
+    role_by_name = {r.name: r for r in Role.query.all()}
+    skipped = []
+    for a in acc_doc:
+        rn = str(a.get("role_name") or "")
+        r = role_by_name.get(rn)
+        if r is None:
+            if rn: skipped.append(rn)
+            continue
+        for mo in (a.get("modes") or []):
+            if mo in ("view", "create", "delete"):
+                db.session.add(TableAccess(table_id=t.id, role_id=r.id, column_key="", mode=mo))
+        for ek in (a.get("edits") or []):
+            db.session.add(TableAccess(table_id=t.id, role_id=r.id, column_key=str(ek), mode="edit"))
+    db.session.commit()
+    msg = "Таблица создана из шаблона «%s»: колонок %d, правил доступа применено." % (tpl_key, len(cols_doc))
+    if skipped:
+        msg += " Пропущены роли (нет на этой машине): " + ", ".join(skipped) + "."
+    flash(msg)
+    return redirect(url_for("tables.view", tid=t.id))

@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}Таблицы{% endblock %}
+{% block content %}
+<div class="welcome">
+{% if can('tables.manage') %}
+<p style="margin-top:18px;font-size:12px;color:#8a93a6"><a href="{{ url_for('tables.import_json') }}" style="color:#667eea;text-decoration:underline dotted">📤 Импорт готовой таблицы из файла (.json)</a> · <a href="#" onclick="alert('Экспорт делается кнопкой ⬇ Экспорт (.json) в шапке формы или листа нужной таблицы.');return false" style="color:#8a93a6">как экспортировать?</a></p>{% endif %}
+<h2>Таблицы (конструктор)</h2>
+<p>Свои таблицы с колонками, формулами-конструктором, правами на клетки, историей и корзиной. Таблица, которую вы видите, — та, на которую вашей роли открыт доступ в матрице «Доступ».</p>
+</div>
+<table>
+<thead><tr><th>Таблица</th><th>Ключ</th><th>Создана</th></tr></thead>
+<tbody>
+{% for t in tables %}
+<tr><td><a href="{{ url_for('tables.view', tid=t.id) }}"><b>{{ t.title }}</b></a></td>
+<td><code>{{ t.key }}</code></td>
+<td>{{ t.created_at.strftime('%d.%m.%Y') }} ({{ t.created_by }})</td></tr>
+{% else %}
+<tr><td colspan="3" class="empty">Таблиц пока нет или ни одной не открыт доступ вашей роли.</td></tr>
+{% endfor %}
+</tbody>
+</table>
+{% if can('tables.manage') %}
+<div class="info">
+<h3>Создать таблицу</h3>
+<form method="post" action="{{ url_for('tables.table_new') }}" style="display:flex;gap:8px;flex-wrap:wrap">
+<input type="text" name="title" placeholder="Название (например: Заказы)" required style="min-width:200px">
+<input type="text" name="key" placeholder="Ключ латиницей (zakazy)" required style="min-width:160px">
+<button class="btn" type="submit">Создать</button>
+</form>
+<p class="note">После создания добавьте колонки (включая вычисляемые) и настройте матрицу доступа «роль × колонка».</p>
+</div>
+{% endif %}
+{% if can('tables.manage') %}
+<div class="card" style="margin-bottom:14px">
+<h3>Как назвать новую таблицу?</h3>
+<p class="note">Пишите по-русски — служебное имя программа подберёт сама (латиницей, автоматически).</p>
+<form method="post" action="{{ url_for('tables.table_new') }}">
+  <div class="form-row"><label>Название таблицы</label><input type="text" name="title" placeholder="например: Заказы на ремонт" required></div>
+  <button class="btn" type="submit">Создать пустую таблицу</button>
+</form>
+<hr style="margin:14px 0;border:none;border-top:1px dashed #d6dbe4">
+<h3>Или выберите готовый шаблон</h3>
+<div class="tpl-grid">
+  {% for tpl in templates_lib %}
+  <form method="post" action="{{ url_for('tables.new_from_template', tpl_key=tpl.key) }}" class="tpl-card">
+    <h4>{{ tpl.title }}</h4>
+    <p class="note">колонок: {{ tpl.columns|length }} · групп: {{ (tpl.columns|map(attribute='grp')|unique|list)|length }} · итогов: {{ (tpl.counters or [])|length }}</p>
+    <input type="text" name="title" placeholder="название для копии" value="{{ tpl.title }}" style="width:100%;padding:6px 8px;margin:6px 0;border:1px solid #d6dbe4;border-radius:7px">
+    <button class="btn" type="submit">Создать из шаблона</button>
+  </form>
+  {% endfor %}
+</div>
+</div>
+{% endif %}
+{% endblock %}

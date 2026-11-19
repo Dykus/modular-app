@@ -1,0 +1,456 @@
+[
+ {
+  "key": "orders",
+  "title": "Заказы производства",
+  "columns": [
+   {
+    "key": "nomer_zakaza",
+    "title": "№ заказа",
+    "col_type": "text",
+    "grp": "Продажи",
+    "options": [],
+    "formula": {},
+    "order": 1
+   },
+   {
+    "key": "klient",
+    "title": "Клиент",
+    "col_type": "text",
+    "grp": "Продажи",
+    "options": [],
+    "formula": {},
+    "order": 2
+   },
+   {
+    "key": "summa_rub",
+    "title": "Сумма, руб",
+    "col_type": "number",
+    "grp": "Продажи",
+    "options": [],
+    "formula": {},
+    "order": 3
+   },
+   {
+    "key": "data_zakaza",
+    "title": "Дата заказа",
+    "col_type": "date",
+    "grp": "Продажи",
+    "options": [],
+    "formula": {},
+    "order": 4
+   },
+   {
+    "key": "srok_k",
+    "title": "Срок к",
+    "col_type": "date",
+    "grp": "Продажи",
+    "options": [],
+    "formula": {},
+    "order": 5
+   },
+   {
+    "key": "status_proizvodstva",
+    "title": "Статус производства",
+    "col_type": "list",
+    "grp": "Производство",
+    "options": [
+     "Не начато",
+     "В производстве",
+     "На контроле",
+     "Готово"
+    ],
+    "formula": {},
+    "order": 6
+   },
+   {
+    "key": "data_gotovnosti",
+    "title": "Дата готовности",
+    "col_type": "date",
+    "grp": "Производство",
+    "options": [],
+    "formula": {},
+    "order": 7
+   },
+   {
+    "key": "ceh_linia",
+    "title": "Цех / линия",
+    "col_type": "list",
+    "grp": "Производство",
+    "options": [
+     "Цех 1",
+     "Цех 2",
+     "Цех 3",
+     "Линия А",
+     "Линия Б"
+    ],
+    "formula": {},
+    "order": 8
+   },
+   {
+    "key": "primechanie_proizvodstva",
+    "title": "Примечание производства",
+    "col_type": "text",
+    "grp": "Производство",
+    "options": [],
+    "formula": {},
+    "order": 9
+   },
+   {
+    "key": "otgruzheno",
+    "title": "Отгружено",
+    "col_type": "list",
+    "grp": "Склад",
+    "options": [
+     "Нет",
+     "Частично",
+     "Да"
+    ],
+    "formula": {},
+    "order": 10
+   },
+   {
+    "key": "data_otgruzki",
+    "title": "Дата отгрузки",
+    "col_type": "date",
+    "grp": "Склад",
+    "options": [],
+    "formula": {},
+    "order": 11
+   },
+   {
+    "key": "primechanie_składa",
+    "title": "Примечание склада",
+    "col_type": "text",
+    "grp": "Склад",
+    "options": [],
+    "formula": {},
+    "order": 12
+   }
+  ],
+  "counters": [
+   {
+    "title": "Всего заказов",
+    "func": "count",
+    "col": "nomer_zakaza",
+    "wcol": "",
+    "wval": ""
+   },
+   {
+    "title": "Сумма заказов",
+    "func": "sum",
+    "col": "summa_rub",
+    "wcol": "",
+    "wval": ""
+   },
+   {
+    "title": "В производстве",
+    "func": "count",
+    "col": "nomer_zakaza",
+    "wcol": "status_proizvodstva",
+    "wval": "В производстве"
+   },
+   {
+    "title": "Отгружено",
+    "func": "count",
+    "col": "nomer_zakaza",
+    "wcol": "otgruzheno",
+    "wval": "Да"
+   }
+  ],
+  "access": [
+   {
+    "role_name": "manager",
+    "modes": [
+     "view",
+     "create",
+     "delete"
+    ],
+    "edits": [
+     "nomer_zakaza",
+     "klient",
+     "summa_rub",
+     "data_zakaza",
+     "srok_k",
+     "status_proizvodstva",
+     "data_gotovnosti",
+     "ceh_linia",
+     "primechanie_proizvodstva",
+     "otgruzheno",
+     "data_otgruzki",
+     "primechanie_składa"
+    ]
+   },
+   {
+    "role_name": "staff",
+    "modes": [
+     "view",
+     "create"
+    ],
+    "edits": [
+     "nomer_zakaza",
+     "klient",
+     "summa_rub",
+     "data_zakaza",
+     "srok_k"
+    ]
+   },
+   {
+    "role_name": "viewer",
+    "modes": [
+     "view"
+    ],
+    "edits": []
+   }
+  ]
+ },
+ {
+  "key": "equipment",
+  "title": "Оборудование и ремонт",
+  "columns": [
+   {
+    "key": "inv_nomer",
+    "title": "Инв. номер",
+    "col_type": "text",
+    "grp": "БЕЗ ГРУППЫ",
+    "options": [],
+    "formula": {},
+    "order": 1
+   },
+   {
+    "key": "nazvanie",
+    "title": "Название",
+    "col_type": "text",
+    "grp": "БЕЗ ГРУППЫ",
+    "options": [],
+    "formula": {},
+    "order": 2
+   },
+   {
+    "key": "tip",
+    "title": "Тип",
+    "col_type": "list",
+    "grp": "БЕЗ ГРУППЫ",
+    "options": [
+     "Станок",
+     "Пресс",
+     "Конвейер",
+     "Электро"
+    ],
+    "formula": {},
+    "order": 3
+   },
+   {
+    "key": "uchastok",
+    "title": "Участок",
+    "col_type": "list",
+    "grp": "БЕЗ ГРУППЫ",
+    "options": [
+     "Цех А",
+     "Цех Б",
+     "Склад"
+    ],
+    "formula": {},
+    "order": 4
+   },
+   {
+    "key": "status_remonta",
+    "title": "Статус ремонта",
+    "col_type": "list",
+    "grp": "Ремонт",
+    "options": [
+     "Исправно",
+     "Требуется ремонт",
+     "В ремонте",
+     "Списано"
+    ],
+    "formula": {},
+    "order": 5
+   },
+   {
+    "key": "planovaya_data",
+    "title": "Плановая дата",
+    "col_type": "date",
+    "grp": "Ремонт",
+    "options": [],
+    "formula": {},
+    "order": 6
+   }
+  ],
+  "counters": [
+   {
+    "title": "Всего единиц",
+    "func": "count",
+    "col": "inv_nomer",
+    "wcol": "",
+    "wval": ""
+   },
+   {
+    "title": "Требуют ремонта",
+    "func": "count",
+    "col": "inv_nomer",
+    "wcol": "status_remonta",
+    "wval": "Требуется ремонт"
+   }
+  ],
+  "access": [
+   {
+    "role_name": "manager",
+    "modes": [
+     "view",
+     "create",
+     "delete"
+    ],
+    "edits": [
+     "inv_nomer",
+     "nazvanie",
+     "tip",
+     "uchastok",
+     "status_remonta",
+     "planovaya_data"
+    ]
+   },
+   {
+    "role_name": "staff",
+    "modes": [
+     "view",
+     "create"
+    ],
+    "edits": [
+     "status_remonta",
+     "planovaya_data"
+    ]
+   },
+   {
+    "role_name": "viewer",
+    "modes": [
+     "view"
+    ],
+    "edits": []
+   }
+  ]
+ },
+ {
+  "key": "requests",
+  "title": "Заявки сотрудников",
+  "columns": [
+   {
+    "key": "fio",
+    "title": "ФИО сотрудника",
+    "col_type": "text",
+    "grp": "Заявитель",
+    "options": [],
+    "formula": {},
+    "order": 1
+   },
+   {
+    "key": "otdel",
+    "title": "Отдел",
+    "col_type": "list",
+    "grp": "Заявитель",
+    "options": [
+     "Производство",
+     "Продажи",
+     "Склад",
+     "Администрация"
+    ],
+    "formula": {},
+    "order": 2
+   },
+   {
+    "key": "data_podachi",
+    "title": "Дата подачи",
+    "col_type": "date",
+    "grp": "Заявитель",
+    "options": [],
+    "formula": {},
+    "order": 3
+   },
+   {
+    "key": "tema",
+    "title": "Тема заявки",
+    "col_type": "text",
+    "grp": "Заявитель",
+    "options": [],
+    "formula": {},
+    "order": 4
+   },
+   {
+    "key": "status_soglasovaniya",
+    "title": "Статус согласования",
+    "col_type": "list",
+    "grp": "Руководство",
+    "options": [
+     "Черновик",
+     "На согласовании",
+     "Согласовано",
+     "Отклонено"
+    ],
+    "formula": {},
+    "order": 5
+   },
+   {
+    "key": "kommentariy_rukovoditel",
+    "title": "Комментарий руководителя",
+    "col_type": "text",
+    "grp": "Руководство",
+    "options": [],
+    "formula": {},
+    "order": 6
+   }
+  ],
+  "counters": [
+   {
+    "title": "Всего заявок",
+    "func": "count",
+    "col": "fio",
+    "wcol": "",
+    "wval": ""
+   },
+   {
+    "title": "На согласовании",
+    "func": "count",
+    "col": "fio",
+    "wcol": "status_soglasovaniya",
+    "wval": "На согласовании"
+   }
+  ],
+  "access": [
+   {
+    "role_name": "manager",
+    "modes": [
+     "view",
+     "create",
+     "delete"
+    ],
+    "edits": [
+     "fio",
+     "otdel",
+     "data_podachi",
+     "tema",
+     "status_soglasovaniya",
+     "kommentariy_rukovoditel"
+    ]
+   },
+   {
+    "role_name": "staff",
+    "modes": [
+     "view",
+     "create"
+    ],
+    "edits": [
+     "fio",
+     "otdel",
+     "data_podachi",
+     "tema"
+    ]
+   },
+   {
+    "role_name": "viewer",
+    "modes": [
+     "view"
+    ],
+    "edits": []
+   }
+  ]
+ }
+]

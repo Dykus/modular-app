@@ -189,3 +189,23 @@ body.dark{--shg0c:#4dabf7;--shg0b:#12283d;--shg1c:#ffa94d;--shg1b:#33230f;--shg2
 .tscroll tbody td.ty-number,.tscroll tbody td.ty-date{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
 .tscroll tbody tr td:last-child{white-space:nowrap;vertical-align:middle}
 .tscroll tbody tr td:last-child .btn{padding:3px 9px;font-size:11px;margin:0 2px}
+/* tpl-css: kartochi shablonov i skrytie tehnicheskih polej */
+.tpl-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px}
+.tpl-card{border:1px solid #d6dbe4;border-radius:10px;padding:12px;background:#fff;display:flex;flex-direction:column;gap:4px}
+.tpl-card h4{margin:0;font-size:14px;color:#2c3e50}
+.tech-field{display:none}
+@media (min-width:1px){body.show-tech .tech-field{display:block}}
+/* fe-css: vizualnyj redaktor formul */
+.fe-box{margin:10px 0;padding:12px;background:#f4f8ff;border:1px solid #cfe0f7;border-left:4px solid #2196f3;border-radius:8px}
+.fe-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.fe-title{font-weight:700;color:#1565c0;font-size:13px;text-transform:uppercase;letter-spacing:.3px}
+.fe-kinds{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+.fe-kind{padding:6px 10px;border:1px solid #d6dbe4;border-radius:14px;background:#fff;font-size:12px;cursor:pointer}
+.fe-kind.on{background:#1976d2;color:#fff;border-color:#1976d2}
+.fe-line{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:6px}
+.fe-tok{display:inline-flex;gap:4px;align-items:center}
+.fe-lbl{font-size:11px;color:#5a6b85;text-transform:uppercase}
+.fe-plus{font-weight:700;color:#1976d2;padding:0 4px}
+.fe-prev{margin-top:8px;font-size:13px;color:#1565c0;font-weight:600}
+.fe-ref{display:flex;gap:6px;flex-wrap:wrap;align-items:center;font-size:13px}
+.fe-ref input,.fe-ref select{padding:5px 8px;border:1px solid #d6dbe4;border-radius:6px}

@@ -89,3 +89,13 @@ body.dark .tscroll thead tr.fbands th.fg3{background:var(--shg3b);color:var(--sh
 body.dark .tscroll thead tr.fbands th.fg4{background:var(--shg4b);color:var(--shg4c);border-top-color:var(--shg4c)}
 body.dark .tscroll thead tr.fbands th.fg5{background:var(--shg5b);color:var(--shg5c);border-top-color:var(--shg5c)}
 body.dark .tscroll thead tr.fcols th{color:#b9c4d6;border-bottom-color:#2b3646;background:#1b2430}
+/* tpl-dark */
+body.dark .tpl-card{background:#1d2733;border-color:#2b3646}
+body.dark .tpl-card h4{color:#e7eaf0}
+/* fe-dark */
+body.dark .fe-box{background:#1c2733;border-color:#2b3646;border-left-color:#3b82f6}
+body.dark .fe-title{color:#60a5fa}
+body.dark .fe-kind{background:#1d2733;border-color:#2b3646;color:#c4ccd8}
+body.dark .fe-kind.on{background:#3b82f6;color:#fff;border-color:#3b82f6}
+body.dark .fe-prev{color:#60a5fa}
+body.dark .fe-ref input,body.dark .fe-ref select{background:#1a1d24;border-color:#3a3f4b;color:#e7eaf0}

@@ -452,6 +452,39 @@ function boot(){
 if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded",boot);}else{boot();}
 })();
 </script>
+<script src="{{ url_for('static', filename='js/formula_editor.js') }}"></script>
+<script>
+/* colhuman-v1: skryvaem tehnicheskie polya, menyaem podisi na russkie. */
+(function(){
+function boot(){
+ var map={
+  "Ключ латиницей (sum)":"Служебное имя (подбирается само)",
+  "Тип":"Что хранить",
+  "Группа":"Кто заполняет",
+  "Формула":"Выражение",
+  "Варианты списка":"Значения для выбора из списка",
+  "Вычисляемая (формула)":"считать самому (формула)",
+  "Ссылка на другую таблицу":"брать из другой таблицы",
+  "Текст":"текст","Число":"число","Дата":"дату","Список":"выбирать из списка"
+ };
+ var els=document.querySelectorAll("label,legend,h3,h4,th,td,.note");
+ for(var i=0;i<els.length;i++){
+  var el=els[i];var tx=(el.textContent||"").trim();
+  for(var k in map){ if(tx===k||tx.indexOf(k)===0){ el.textContent=map[k]+(tx.length>k.length?" "+tx.slice(k.length).trim():""); break; } }
+ }
+ var kin=document.querySelector('[name="key"]');
+ if(kin){kin.classList.add("tech-field");var lb=kin.previousElementSibling;if(lb&&lb.tagName==="LABEL")lb.classList.add("tech-field");}
+ var gin=document.querySelector('[name="grp"]');
+ if(gin&&!gin.getAttribute("list")){
+  var dl=document.createElement("datalist");dl.id="grpdls";document.body.appendChild(dl);
+  var seen={};var gs=document.querySelectorAll("td.gcell");
+  for(var g=0;g<gs.length;g++){var v=(gs[g].textContent||"").trim();if(v&&v!=="—"&&!seen[v]){seen[v]=1;var o=document.createElement("option");o.value=v;dl.appendChild(o);}}
+  gin.setAttribute("list","grpdls");
+ }
+}
+if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded",boot);}else{boot();}
+})();
+</script>
 {% endblock %}
 
 
