@@ -73,8 +73,14 @@
   if(flash){var txt=(flash.textContent||"").trim();
     if(txt){var t=document.createElement("div");t.className="sbtoast";t.textContent=txt;
       document.body.appendChild(t);flash.style.display="none";
-      setTimeout(function(){t.style.opacity="0";t.style.transition=".4s";
-        setTimeout(function(){if(t.parentNode)t.remove();},450);},6000);}}
+      t.title="Клик — скрыть";t.style.cursor="pointer"; /* sbtoast-hover-v1 */
+      var ttl=10000,left=ttl,t0=0,tmr=null;
+      function kill(){t.style.opacity="0";t.style.transition=".4s";setTimeout(function(){if(t.parentNode)t.remove();},450);}
+      function go(){t0=Date.now();tmr=setTimeout(kill,left);}
+      t.addEventListener("mouseenter",function(){clearTimeout(tmr);left-=Date.now()-t0;});
+      t.addEventListener("mouseleave",go);
+      t.addEventListener("click",kill);
+      go();}}
   var st=+sessionStorage.getItem("sb:t")||0;
   var saved=sessionStorage.getItem(k);
   if(saved&&Date.now()-st<20000){var y=+saved;setTimeout(function(){window.scrollTo(0,y);},0);}

@@ -31,7 +31,15 @@ function clearDirty(id,key){if(dirty[id])delete dirty[id][key];}
 function isDirty(id,key){return dirty[id]&&dirty[id][key]&&(Date.now()-dirty[id][key]<20000);}
 function toast(msg,kind,action){var t=document.createElement("div");t.className="t "+(kind||"");var s=document.createElement("span");s.textContent=msg;t.appendChild(s);
  if(action){var b=document.createElement("button");b.textContent=action.label;b.onclick=function(){action.fn();t.remove();};t.appendChild(b);}
- $("shtoasts").appendChild(t);setTimeout(function(){t.style.opacity="0";t.style.transition=".3s";setTimeout(function(){t.remove();},320);},action?8000:4200);}
+ $("shtoasts").appendChild(t);
+ t.title="Клик — скрыть";t.style.cursor="pointer"; /* toast-hover-v1 */
+ var ttl=action?12000:8000,left=ttl,t0=0,tmr=null;
+ function kill(){if(!t.parentNode)return;t.style.opacity="0";t.style.transition=".3s";setTimeout(function(){if(t.parentNode)t.remove();},320);}
+ function go(){t0=Date.now();tmr=setTimeout(kill,left);}
+ t.addEventListener("mouseenter",function(){clearTimeout(tmr);left-=Date.now()-t0;});
+ t.addEventListener("mouseleave",go);
+ t.addEventListener("click",function(e){if(e.target.tagName!=="BUTTON")kill();});
+ go();}
 function post(url,body){return fetch(url,{method:"POST",headers:{"Content-Type":"application/json","X-Requested-With":"fetch"},body:JSON.stringify(body||{})}).then(function(r){return r.json().then(function(j){return{status:r.status,j:j};});});}
 function setPollLabel(){var el=$("shpoll");if(!el)return;
  if(editing){el.textContent="обновление отложено — идёт правка";el.style.color="#e8930c";return;}
