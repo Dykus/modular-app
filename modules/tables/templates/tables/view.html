@@ -17,7 +17,8 @@
       {% if can('tables.manage') %}
       <a class="btn gray" href="{{ url_for('tables.cols', tid=t.id) }}">⚙ Колонки и формулы</a>
       <a class="btn gray" href="{{ url_for('tables.access', tid=t.id) }}">🛡 Доступ (роли × колонки)</a>
-      <form method="post" action="{{ url_for('tables.table_delete', tid=t.id) }}" class="tb-danger"
+      <a class="btn gray" href="{{ url_for('tables.table_export', tid=t.id) }}" onclick="this.setAttribute('data-texp','1')">⬇ Экспорт (.json)</a> <!-- texp-btn-v1 -->
+<form method="post" action="{{ url_for('tables.table_delete', tid=t.id) }}" class="tb-danger"
             onsubmit="return confirm('Удалить таблицу целиком? Будет создана резервная копия в data/backups/.');">
         <button class="btn red" type="submit">🗑 Удалить таблицу</button>
       </form>
@@ -80,4 +81,5 @@
 <p class="note">✎ — колонку можно менять вашей роли, 🔒 — только чтение, ⚙ — вычисляется программой (формула или ссылка на другую таблицу).</p>
 {% endif %}
 <script src="{{ url_for('static', filename='js/form_width.js') }}"></script>
+
 {% endblock %}

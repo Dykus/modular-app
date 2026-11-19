@@ -23,6 +23,7 @@ window.addEventListener("error", function(e){
       <a class="btn gray" href="{{ payload.urls.form }}">📋 Форма</a>
       <a class="btn gray" href="{{ payload.urls.trash }}">🗑 Корзина (<span id="shtrash">{{ payload.trash }}</span>)</a>
       <button class="btn" id="shnew">＋ Строка</button>
+      <a class="btn gray" href="{{ url_for('tables.table_export', tid=payload.tid) }}">⬇ Экспорт (.json)</a> <!-- texp-btn-sheet-v1 -->
       <button class="btn gray" id="shcsv">⬇ CSV</button>
       <button class="btn gray" id="shprint">🖨 Печать</button>
     </div>

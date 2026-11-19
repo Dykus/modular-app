@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}Импорт таблицы (.json){% endblock %}
+{% block content %}
+<h2>📤 Импорт таблицы (.json)</h2>
+<p class="note">Перенос готовой таблицы между машинами одним файлом: колонки с типами, группами и формулами, права (по имени роли), счётчики, ширина и строки, включая корзину.</p>
+
+{% if step == "pick" %}
+<form method="post" enctype="multipart/form-data" action="{{ url_for('tables.import_json') }}">
+  <input type="hidden" name="act" value="preview">
+  <div class="form-row"><label>Файл экспорта (.json)</label><input type="file" name="file" accept=".json,application/json" required></div>
+  <button class="btn" type="submit">Показать сводку</button>
+</form>
+<p class="note">Экспорт делается кнопкой «⬇ Экспорт (.json)» в шапке формы или листа нужной таблицы.</p>
+
+{% elif step == "confirm" %}
+<div class="card" style="margin-bottom:12px">
+  <h3>{{ summ.title }} <code>{{ summ.key }}</code></h3>
+  <p>Колонок: <b>{{ summ.ncols }}</b> · строк живых: <b>{{ summ.nlive }}</b> · в корзине: <b>{{ summ.ndead }}</b> · правил доступа: <b>{{ summ.nacc }}</b></p>
+  <p>Роли на этой машине: {{ summ.have_roles|join(', ') or '—' }}
+     {% if summ.missing_roles %}<span style="color:#c0392b"> · отсутствуют: {{ summ.missing_roles|join(', ') }} (их права будут пропущены)</span>{% endif %}</p>
+  {% if summ.conflict %}<p style="color:#e8930c;font-weight:700">Ключ «{{ summ.conflict }}» уже занят на этой машине.</p>{% endif %}
+</div>
+<form method="post" action="{{ url_for('tables.import_json') }}">
+  <input type="hidden" name="act" value="apply">
+  <div class="form-row">
+    <label><input type="radio" name="mode" value="new" {% if not summ.conflict %}checked{% endif %}> Создать новую копию</label>
+    <label><input type="radio" name="mode" value="update" {% if summ.conflict %}checked{% endif %}> Обновить существующую (колонки догоняются, строки по id, доступ и счётчики перезаписываются)</label>
+    <label><input type="radio" name="mode" value="structure"> Только структура (колонки/права/счётчики/ширина — да, строки — нет)</label>
+  </div>
+  <div class="form-row"><label>Новый ключ (если «Создать новую» и ключ занят; латиницей, без пробелов)</label>
+    <input type="text" name="newkey" placeholder="{{ summ.key }}-copy"></div>
+  <p class="note">Перед «Обновить» и «Только структура» автоматически пишется резервная копия в <code>data/backups/</code>. Импорт выполняется одной транзакцией: ошибка на середине — откат, база не меняется.</p>
+  <button class="btn" type="submit" onclick="return confirm('Импортировать эту таблицу?');">Применить импорт</button>
+  <a class="btn gray" href="{{ url_for('tables.import_json') }}">Отмена</a>
+</form>
+
+{% elif step == "done" %}
+<div class="card" style="border-left:4px solid #2f9e44">
+  <h3>Импорт завершён (режим: {{ done.mode }})</h3>
+  <p>Колонок добавлено: <b>{{ done.cols_added }}</b> · обновлено: <b>{{ done.cols_updated }}</b> · удалено: <b>{{ done.cols_removed }}</b></p>
+  <p>Строк создано: <b>{{ done.rows_created }}</b> · обновлено: <b>{{ done.rows_updated }}</b> · восстановлено в корзину: <b>{{ done.trash_restored }}</b></p>
+  {% if done.roles_skipped %}<p style="color:#e8930c">Пропущены роли (нет на этой машине): {{ done.roles_skipped|join(', ') }}</p>{% endif %}
+  <p>Резервная копия: <code>{{ done.backup }}</code></p>
+  {% if done.errors %}<p style="color:#c0392b;font-weight:700">Замечания: {{ done.errors|join('; ') }}</p>{% endif %}
+  <a class="btn" href="{{ url_for('tables.index') }}">К списку таблиц</a>
+  <a class="btn gray" href="{{ url_for('tables.import_json') }}">Импортировать ещё</a>
+</div>
+{% endif %}
+{% endblock %}
