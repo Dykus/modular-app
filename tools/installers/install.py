@@ -8,125 +8,43 @@ while not os.path.isfile(os.path.join(d, "run.py")):
 BASE = d
 print("ROOT: " + BASE)
 
-HELP_BODY = '''Что такое лист и когда он нужен
-
-Лист — второй вид таблицы конструктора (кнопка «📊 Лист (Excel-вид)» рядом с вкладками таблиц). Он для ежедневной работы: клик по клетке — правка, Enter — сохранить, Tab — следующая клетка, стрелки — навигация, Ctrl+Z — отменить, начал печатать — клетка открылась для правки. Вид «Форма» остаётся служебным: импорт Excel, корзина, отчёт «История клеток», настройка колонок и прав.
-
-Свои и чужие колонки
-
-✎ — колонку можно править вашей роли; 🔒 — только чтение (клик по такой клетке объяснит, какая группа её заполняет); ⚙ — вычисляется программой (формула или ссылка на другую таблицу), руками не правится. Цветные полосы над колонками — группы (отделы). Группа назначается в «Колонки и формулы»: полем «Группа», кликом по клетке «Группа» в списке колонок или чипами панели «Группы» (переименовать везде, убрать везде). Группа — это подсказка цветом, права настраиваются отдельно в «Доступ (роли × колонки)».
-
-Чужие правки и своя правка без потерь
-
-Раз в 10 секунд лист опрашивает сервер: чужие изменения подсвечиваются зелёной полосой слева и приходят с тостом «Чужие правки: N». Пока вы редактируете клетку, обновление откладывается (надпись «обновление отложено — идёт правка» в панели вида) и применяется после Enter, Tab или Esc — несохранённый ввод не теряется. Галочка «пауза автообновления» и кнопка «⟳ Обновить» управляют опросом вручную.
-
-Карточка строки, история, отмена
-
-Правый клик по строке — карточка: все значения и история клетки с кнопкой «вернуть старое». Лента «История изменений по клеткам» под таблицей показывает последние правки всех участников. Ctrl+Z отменяет вашу последнюю правку. Галочки слева — массовые операции: применить статус к нескольким строкам, удалить в корзину с отменой. Перетаскивание за ⋮⋮ меняет и сохраняет порядок строк.
-
-Пример приёма смены (демо-таблица «Заказы (демо-макет)»)
-
-- Кликните клетку «Статус производства» у заказа 002, выберите «В производстве», Enter — значение сохранилось, в истории появилась запись «вы: Не начато → В производстве».
-- Измените «Сумма, руб» у заказа 003 — карточка-счётчик «Сумма заказов» над таблицей пересчитается сразу.
-- Откройте второй браузер под ролью кладовщика: его колонки — «Отгружено», «Дата отгрузки», «Примечание склада»; ваши продажи для него 🔒, и наоборот.
-- «💾 Вид» запоминает фильтры, сортировку и настройки вида под вашим именем; «Виды…» — применяет сохранённый вид одним выбором.
-
-CSV и печать
-
-«⬇ CSV» выгружает видимые (с учётом фильтров) строки в файл, который Excel открывает с кириллицей и разделителем «;». «🖨 Печать» печатает таблицу без панелей управления.'''
-
-MANUAL_BODY = '''Лист (Excel-вид): настройка, группы, формулы, приёмка
-
-Лист включается кнопкой «📊 Лист (Excel-вид)» на странице таблицы и работает на тех же данных, правах и истории, что «Форма». Чтобы отделы видели цветные полосы «кто заполняет», задайте колонкам группы: в «Колонки и формулы» полем «Группа», кликом по клетке «Группа» в списке колонок или чипами панели «Группы» (клик по чипу — переименовать группу везде, ✕ — убрать везде). Права остаются матрицей «роль × колонка» в «Доступ»: группа не даёт и не отнимает прав, она только подсказка цветом.
-
-Формулы и ссылки с живым примером
-
-Для типов «Вычисляемая» и «Ссылка» под конструктором формулы работает панель «Живой пример»: человеческая расшифровка («„Часы работы“ × „Ставка“», «если „Приоритет“ = „Критичный“ то …») и результат на первых пяти строках до сохранения. Показываются только поля выбранного вида формулы: арифметика (+, −, ×, ÷ над колонками или числами), склейка, дни между датами (при пустом B — до сегодня), ЕСЛИ (равно / не равно / содержит / больше / меньше). Ссылка работает как ВПР: найди строку в другой таблице по совпадению ключа и покажи её колонку.
-
-Счётчики-карточки
-
-Счётчики настраиваются визуальным конструктором: название, «сколько строк» или «сумма чисел», колонка, условие (колонка + значение; для колонок-списков значение выбирается из списка). Технический трубчатый формат свёрнут в блок «Технический формат» и заполняется сам.
-
-Корзина, история, импорт
-
-Удалённые строки живут в корзине 30 дней с восстановлением; «История клеток» — сквозной отчёт кто / когда / было / стало; импорт .xlsx сопоставляет колонки по заголовкам и умеет создавать недостающие. Всё это доступно из шапки таблицы и не зависит от выбранного вида.'''
-
-dp = os.path.join(BASE, "modules", "versions", "docs_seed.py")
-htxt = open(dp, encoding="utf-8").read()
-m = re.search(r'_B64\s*=\s*"([^"]*)"', htxt)
-if not m:
-    print("FAIL docs_seed.py: no _B64")
+mp = os.path.join(BASE, "modules", "manual", "templates", "manual", "index.html")
+s = open(mp, encoding="utf-8").read()
+pat = re.compile(r'[ \t]*<button class="btn gray" onclick="window\.print\(\)">Печать этой страницы</button>[ \t]*\r?\n')
+if pat.search(s):
+    s = pat.sub("", s, count=1)
+    open(mp, "w", encoding="utf-8", newline="\n").write(s)
+    print("PATCH manual/index.html: duplicate print button removed")
+elif "Печать этой страницы" in s:
+    s = s.replace("Печать этой страницы", "", 1)
+    s = re.sub(r'[ \t]*<button class="btn gray" onclick="window\.print\(\)"></button>[ \t]*\r?\n', "", s, count=1)
+    open(mp, "w", encoding="utf-8", newline="\n").write(s)
+    print("PATCH manual/index.html: duplicate print button removed (fallback regex)")
 else:
-    data = json.loads(base64.b64decode(m.group(1)).decode("utf-8"))
-    hl = data.get("help", [])
-    ml = data.get("manual", [])
-    def maxorder(lst):
-        mx = 0
-        for x in lst:
-            try:
-                mx = max(mx, int(x.get("order") or 0))
-            except Exception:
-                pass
-        return mx
-    hitem = None
-    for x in hl:
-        if str(x.get("title", "")).startswith("Лист (Excel-вид)"):
-            hitem = x
-    if hitem is None:
-        hitem = {"title": "Лист (Excel-вид): как работать в таблице как в Excel"}
-        hl.append(hitem)
-        print("ADD help article (was missing)")
-    hitem["body"] = HELP_BODY
-    hitem["category"] = hitem.get("category") or "Модули"
-    try:
-        int(hitem.get("order"))
-    except Exception:
-        hitem["order"] = maxorder(hl) + 1
-        print("FIX help order -> %s" % hitem["order"])
-    mitem = None
-    for x in ml:
-        if str(x.get("title", "")).startswith("Лист (Excel-вид)"):
-            mitem = x
-    if mitem is None:
-        mitem = {"title": "Лист (Excel-вид): настройка, группы, формулы, приёмка"}
-        ml.append(mitem)
-        print("ADD manual section (was missing)")
-    mitem["body"] = MANUAL_BODY
-    if not (mitem.get("code") or "").strip():
-        mitem["code"] = "list-excel"
-        print("FIX manual code -> list-excel")
-    try:
-        int(mitem.get("order"))
-    except Exception:
-        mitem["order"] = maxorder(ml) + 1
-        print("FIX manual order -> %s" % mitem["order"])
-    nb = base64.b64encode(json.dumps(data, ensure_ascii=False).encode("utf-8")).decode("ascii")
-    htxt = htxt[:m.start(1)] + nb + htxt[m.end(1):]
-    open(dp, "w", encoding="utf-8", newline="\n").write(htxt)
-    print("PATCH docs_seed.py: sheet docs normalized to plain-text schema (help+manual)")
+    print("SKIP manual/index.html: duplicate button already gone")
 
 hp = os.path.join(BASE, "modules", "versions", "history_seed.py")
 v = open(hp, encoding="utf-8").read()
-m2 = re.search(r'_B64\s*=\s*"([^"]*)"', v)
-data2 = json.loads(base64.b64decode(m2.group(1)).decode("utf-8"))
-if not any(r.get("version") == "0.13.20" for r in data2["releases"]):
-    data2["releases"].insert(0, {"version": "0.13.20", "release_date": "2026-11-19", "status": "released",
-        "title": "Статья про лист приведена к схеме эталона документации",
-        "notes": "Диагностика показала схему эталона: статьи справки имеют поля body/category/order/title, разделы руководства — body/code/order/title, и шаблоны рисуют body как простой текст (без |safe). Статья «Лист (Excel-вид)» и раздел руководства переведены на чистый текстовый формат с заголовками-строками и списками через дефис, проставлены отсутствующие order у статьи и code («list-excel») у раздела, чтобы порядок в категории и якоря в содержании/печати работали как у остальных разделов."})
-    data2["changelog"].insert(0, {"date": "2026-11-19", "author": "синхронизация документации", "change_type": "fixed",
-        "module": "docs", "ticket": "",
-        "description": "Статья и раздел про лист приведены к схеме эталона (plain-text body, проставлены order и code=list-excel): порядок в справке и якоря в содержании руководства работают как у остальных записей."})
-    nb2 = base64.b64encode(json.dumps(data2, ensure_ascii=False).encode("utf-8")).decode("ascii")
-    v = v[:m2.start(1)] + nb2 + v[m2.end(1):]
+m = re.search(r'_B64\s*=\s*"([^"]*)"', v)
+data = json.loads(base64.b64decode(m.group(1)).decode("utf-8"))
+if not any(r.get("version") == "0.13.21" for r in data["releases"]):
+    data["releases"].insert(0, {"version": "0.13.21", "release_date": "2026-11-19", "status": "released",
+        "title": "В руководстве осталась одна кнопка печати",
+        "notes": "После того как «Версия для печати» стала сама открывать диалог печати, серая кнопка «Печать этой страницы» делала ровно то же самое и только путала. Дубль убран: остаётся одна кнопка «🖨 Версия для печати» (чистая бумага без меню, со штампом версии и даты, диалог открывается сам), а повторно открыть диалог можно кнопкой «Печать сейчас» на жёлтом баннере версии для печати."})
+    data["changelog"].insert(0, {"date": "2026-11-19", "author": "синхронизация документации", "change_type": "changed",
+        "module": "manual", "ticket": "",
+        "description": "Убрана дублирующая кнопка «Печать этой страницы» в руководстве: печать осталась одна — «Версия для печати» с авто-диалогом и кнопкой «Печать сейчас» на баннере."})
+    nb = base64.b64encode(json.dumps(data, ensure_ascii=False).encode("utf-8")).decode("ascii")
+    v = v[:m.start(1)] + nb + v[m.end(1):]
     open(hp, "w", encoding="utf-8", newline="\n").write(v)
-    print("PATCH history_seed.py: release 0.13.20")
+    print("PATCH history_seed.py: release 0.13.21")
 else:
-    print("SKIP history_seed.py: 0.13.20 present")
+    print("SKIP history_seed.py: 0.13.21 present")
 
 print("=" * 60)
-print("MARKER_END: sheet docs normalized (0.13.20)")
+print("MARKER_END: single print button in manual (0.13.21)")
 print("=" * 60)
 print("Commit + Push:")
-print("  modules/versions/docs_seed.py")
+print("  modules/manual/templates/manual/index.html")
 print("  modules/versions/history_seed.py")
 print("  tools/installers/install.py")
