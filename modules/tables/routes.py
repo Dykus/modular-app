@@ -49,9 +49,12 @@ def index():
 def table_new():
     title = (request.form.get("title") or "").strip()
     key = (request.form.get("key") or "").strip()
-    if not title or not key:
-        flash("Укажите название и ключ таблицы (ключ — латиницей, без пробелов).")
+    if not title:
+        flash("Укажите название таблицы.")
         return redirect(url_for("tables.index"))
+    if not key:  # autogen-key-v2
+        taken = {t.key for t in CustomTable.query.all()}
+        key = unique_key(translit_ru_to_latin(title), taken)
     if CustomTable.query.filter_by(key=key).first():
         flash("Таблица с таким ключом уже есть.")
         return redirect(url_for("tables.index"))
@@ -330,9 +333,12 @@ def col_save(tid):
     title = (request.form.get("title") or "").strip()
     key = (request.form.get("key") or "").strip()
     ctype = request.form.get("col_type") or "text"
-    if not title or not key:
-        flash("Укажите название и ключ колонки.")
+    if not title:
+        flash("Укажите название колонки.")
         return redirect(url_for("tables.cols", tid=tid))
+    if not key:  # autogen-key-v2
+        taken = {c.key for c in cols_of(tid)}
+        key = unique_key(translit_ru_to_latin(title), taken)
     dup = TableColumn.query.filter(TableColumn.table_id == tid, TableColumn.key == key)
     if col:
         dup = dup.filter(TableColumn.id != col.id)

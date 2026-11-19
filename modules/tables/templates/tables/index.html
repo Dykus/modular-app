@@ -20,15 +20,6 @@
 </tbody>
 </table>
 {% if can('tables.manage') %}
-<div class="info">
-<h3>Создать таблицу</h3>
-<form method="post" action="{{ url_for('tables.table_new') }}" style="display:flex;gap:8px;flex-wrap:wrap">
-<input type="text" name="title" placeholder="Название (например: Заказы)" required style="min-width:200px">
-
-<button class="btn" type="submit">Создать</button>
-</form>
-<p class="note">После создания добавьте колонки (включая вычисляемые) и настройте матрицу доступа «роль × колонка».</p>
-</div>
 {% endif %}
 {% if can('tables.manage') %}
 <div class="card" style="margin-bottom:14px">
