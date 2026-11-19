@@ -69,6 +69,7 @@ window.addEventListener("error", function(e){
 <div class="shtoasts" id="shtoasts"></div>
 <script>window.SHEET = {{ payload|tojson }};</script>
 <script src="{{ url_for('static', filename='js/sheet.js') }}"></script>
+<script src="{{ url_for('static', filename='js/sheet_cols.js') }}"></script>
 <script>
 /* sh-emptywatch: esli setka pustaya i oshibok ne pojmano — govorim pryamo */
 setTimeout(function(){

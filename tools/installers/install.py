@@ -16,11 +16,29 @@ def append(rel, marker, block):
     p = os.path.join(BASE, *rel.split("/"))
     s = open(p, encoding="utf-8").read()
     if marker in s:
-        print("SKIP " + rel + ": " + marker + " present"); return
+        print("SKIP " + rel + ": " + marker); return
     open(p, "a", encoding="utf-8", newline="\n").write("\n\n" + block.strip("\n") + "\n")
     print("APPEND " + rel + ": " + marker)
 
-# 1. routes.py: col_move (svos sosednih po order). Append, bez pravki suščestvuyushchih strok.
+# 1. sheet_routes.py: cols_reorder (drag zagolovkov lista). Idempotent.
+append("modules/tables/sheet_routes.py", "colreorder-v1", '''
+# colreorder-v1: novy poryadok kolonok po spisku klyuchey (drag zagolovkov v liste).
+@tables_bp.route("/<int:tid>/cols/reorder", methods=["POST"])
+@perm("tables.manage")
+def cols_reorder(tid):
+    ensure()
+    t, m, cols, cm = meta(tid)
+    keys = request.get_json(force=True).get("keys", [])
+    by_key = {c.key: c for c in cols}
+    for i, k in enumerate(keys):
+        c = by_key.get(k)
+        if c is not None:
+            c.order = i + 1
+    db.session.commit()
+    return jsonify({"ok": True, "n": len(keys)})
+''')
+
+# 2. routes.py: col_move (knopki vyshe/nizhe v cols). Idempotent.
 append("modules/tables/routes.py", "colmove-v1", '''
 # colmove-v1: perestanovka kolonok vverh/vniz (order uzhe est v modeli).
 @tables_bp.route("/<int:tid>/col/move", methods=["POST"])
@@ -50,105 +68,27 @@ def col_move(tid):
     return jsonify({"ok": True, "moved": True})
 ''')
 
-# 2. sheet_routes.py: cols_reorder (novy poryadok po spisku klyuchey). Append.
-append("modules/tables/sheet_routes.py", "colreorder-v1", '''
-# colreorder-v1: novy poryadok kolonok po spisku klyuchey (drag zagolovkov v liste).
-@tables_bp.route("/<int:tid>/cols/reorder", methods=["POST"])
-@perm("tables.manage")
-def cols_reorder(tid):
-    ensure()
-    t, m, cols, cm = meta(tid)
-    keys = request.get_json(force=True).get("keys", [])
-    by_key = {c.key: c for c in cols}
-    for i, k in enumerate(keys):
-        c = by_key.get(k)
-        if c is not None:
-            c.order = i + 1
-    db.session.commit()
-    return jsonify({"ok": True, "n": len(keys)})
-''')
-
-# 4. sheet.html: podklyuchenie otdel'nogo skripta (sheet.js NE trogaem).
-sp = os.path.join(BASE, "modules", "tables", "templates", "tables", "sheet.html")
-s = open(sp, encoding="utf-8").read()
-if "sheet_cols.js" in s:
-    print("SKIP sheet.html: sheet_cols.js already linked")
-else:
-    anchor = "</script>\n{% endblock %}"
-    alt = "js/sheet.js')\"></script>"
-    if alt in s:
-        s = s.replace(alt, alt + "\n<script src=\"{{ url_for('static', filename='js/sheet_cols.js') }}\"></script>", 1)
-        open(sp, "w", encoding="utf-8", newline="\n").write(s)
-        print("PATCH sheet.html: sheet_cols.js linked after sheet.js")
-    else:
-        print("WARN sheet.html: sheet.js script anchor not found")
-
-# 5. cols.html: knopki vyshe/niže v spiske kolonok (JS po ykorju cid=, šablon ne pravit).
-COLSJS = r'''
-<script>
-/* colmove-ui-v1 */
-(function(){
-function boot(){
- var links=document.querySelectorAll('a[href*="cid="]');
- if(!links.length)return;
- var BASEU=location.pathname.replace(/\/cols\/?$/,"");
- var seen={};
- for(var i=0;i<links.length;i++){
-  var a=links[i];if(seen[a.getAttribute("href")])continue;seen[a.getAttribute("href")]=1;
-  var tr=a.closest("tr");if(!tr)continue;
-  var m=(a.getAttribute("href")||"").match(/cid=(\d+)/);if(!m)continue;
-  var cid=m[1];
-  var last=tr.cells[tr.cells.length-1];if(!last)continue;
-  var wrap=document.createElement("span");wrap.className="cmv";
-  wrap.innerHTML='<button type="button" class="btn gray cmvu" data-cid="'+cid+'" data-dir="up" title="Выше">↑</button>'
-   +'<button type="button" class="btn gray cmvd" data-cid="'+cid+'" data-dir="down" title="Ниже">↓</button>';
-  last.appendChild(wrap);
- }
- document.addEventListener("click",function(e){
-  var b=e.target.closest(".cmvu,.cmvd");if(!b)return;
-  var cid=b.getAttribute("data-cid"),dir=b.getAttribute("data-dir");
-  b.disabled=true;
-  fetch(BASEU+"/col/move",{method:"POST",headers:{"Content-Type":"application/json","X-Requested-With":"fetch"},
-   body:JSON.stringify({cid:+cid,dir:dir})}).then(function(r){return r.json();}).then(function(j){
-   if(j&&j.ok){location.reload();}else{b.disabled=false;alert("Не удалось переставить колонку.");}
-  }).catch(function(){b.disabled=false;alert("Нет связи с сервером.");});
- });
-}
-if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded",boot);}else{boot();}
-})();
-</script>
-'''
-cp = os.path.join(BASE, "modules", "tables", "templates", "tables", "cols.html")
-s = open(cp, encoding="utf-8").read()
-if "colmove-ui-v1" in s:
-    print("SKIP cols.html: col-move buttons present")
-else:
-    idx = s.rfind("{% endblock %}")
-    if idx != -1:
-        s = s[:idx] + COLSJS.strip("\n") + "\n" + s[idx:]
-        open(cp, "w", encoding="utf-8", newline="\n").write(s)
-        print("PATCH cols.html: up/down column buttons injected")
-    else:
-        print("WARN cols.html: endblock not found")
-
-# 6. sheet_cols.js: drag zagolovkov kolonok -> cols_reorder -> reload. Otdel'ny file, sheet.js netronim.
+# 3. sheet_cols.js v2: MutationObserver perestavljaet draggable posle kazhdoi pererisovki shapki.
 put("web/static/js/sheet_cols.js", r'''
-/* colreorder-ui-v1: peretaskivanie zagolovkov kolonok v liste (otdel'no ot sheet.js) */
+/* colreorder-ui-v2: drag zagolovkov kolonok v liste; draggable perestavljaetsya
+   posle kazhdoi pererisovki #shthead (MutationObserver), slushateli delegirovany
+   na sam #shthead i perezhivajut innerHTML-zamenu. sheet.js NE izmenjaetsya. */
 (function(){
-var dragKey=null, overKey=null, before=true;
-function ths(){var out=[];var t=document.getElementById("shthead");if(!t)return out;
- var r=t.querySelector("tr.shcols");if(!r)return out;
- for(var i=0;i<r.cells.length;i++){var th=r.cells[i];var k=th.getAttribute("data-sort");if(k)out.push(th);}
- return out;}
+"use strict";
+var dragKey=null, overKey=null, before=true, bound=false;
+function shthead(){return document.getElementById("shthead");}
+function ths(){var t=shthead();if(!t)return[];var r=t.querySelector("tr.shcols");if(!r)return[];
+ var out=[];for(var i=0;i<r.cells.length;i++){var th=r.cells[i];if(th.getAttribute("data-sort"))out.push(th);}return out;}
 function keyOrder(){var a=ths(),o=[];for(var i=0;i<a.length;i++)o.push(a[i].getAttribute("data-sort"));return o;}
-function clearMarks(){var a=ths();for(var i=0;i<a.length;i++){a[i].classList.remove("colbefore","colafter");}}
+function equip(){var a=ths();for(var i=0;i<a.length;i++){a[i].setAttribute("draggable","true");a[i].classList.add("coldraggable");}}
+function clearMarks(){var a=ths();for(var i=0;i<a.length;i++)a[i].classList.remove("colbefore","colafter");}
+function reset(){dragKey=null;overKey=null;clearMarks();var a=ths();for(var i=0;i<a.length;i++)a[i].classList.remove("coldragging");}
 function onDown(e){
  if(e.button!==0)return;
  var th=e.target.closest("th[data-sort]");if(!th)return;
- if(e.target.closest("input,select,button"))return;
+ if(e.target.closest("input,select,button,a"))return;
  dragKey=th.getAttribute("data-sort");
- try{e.dataTransfer.setDragImage(th,8,8);}catch(_){}
- e.dataTransfer.effectAllowed="move";
+ try{e.dataTransfer.effectAllowed="move";e.dataTransfer.setData("text/plain",dragKey);}catch(_){}
  th.classList.add("coldragging");
 }
 function onOver(e){
@@ -167,88 +107,97 @@ function onDrop(e){
  if(to<0)to=order.length;
  if(!before)to+=1;
  order.splice(to,0,dragKey);
- var tidEl=document.getElementById("shroot");
- var tid=tidEl?tidEl.getAttribute("data-tid"):"";
+ var root=document.getElementById("shroot");
+ var tid=root?root.getAttribute("data-tid"):"";
  reset();
  if(!tid){location.reload();return;}
- fetch("/tables/"+tid+"/cols/reorder",{method:"POST",headers:{"Content-Type":"application/json","X-Requested-With":"fetch"},
-  body:JSON.stringify({keys:order})}).then(function(r){return r.json();}).then(function(j){
-   if(j&&j.ok){location.reload();}else{alert("Не удалось сохранить порядок колонок.");}
-  }).catch(function(){alert("Нет связи с сервером.");});
+ fetch("/tables/"+tid+"/cols/reorder",{method:"POST",
+  headers:{"Content-Type":"application/json","X-Requested-With":"fetch"},
+  body:JSON.stringify({keys:order})})
+  .then(function(r){return r.json().then(function(j){return{st:r.status,j:j};});})
+  .then(function(res){
+   if(res.st===403){alert("Переставлять колонки может только роль с правом управления таблицей.");return;}
+   if(res.j&&res.j.ok){location.reload();}else{alert("Не удалось сохранить порядок колонок.");}
+  })
+  .catch(function(){alert("Нет связи с сервером.");});
 }
-function reset(){dragKey=null;overKey=null;clearMarks();
- var a=ths();for(var i=0;i<a.length;i++)a[i].classList.remove("coldragging");}
 function bind(){
- var t=document.getElementById("shthead");if(!t)return;
+ var t=shthead();if(!t)return;
+ if(bound)return;bound=true;
  t.addEventListener("dragstart",onDown);
  t.addEventListener("dragover",onOver);
  t.addEventListener("drop",onDrop);
  t.addEventListener("dragend",reset);
- var a=ths();for(var i=0;i<a.length;i++){a[i].setAttribute("draggable","true");a[i].classList.add("coldraggable");}
+ equip();
+ try{
+  var mo=new MutationObserver(function(){equip();});
+  mo.observe(t,{childList:true,subtree:true});
+ }catch(_){
+  setInterval(equip,1500); /* fallback, esli MutationObserver neprestupen */
+ }
 }
-if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded",bind);}else{bind();}
+function start(){
+ if(shthead()&&shthead().querySelector("tr.shcols")){bind();return;}
+ var n=0,tm=setInterval(function(){n++;if(shthead()&&shthead().querySelector("tr.shcols")){clearInterval(tm);bind();}else if(n>20){clearInterval(tm);}},200);
+}
+if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded",start);}else{start();}
 })();
 ''')
 
-# 7. CSS: vizual drag kolonok + knopki vyshe/nizhe.
+# 4. sheet.html: nadezhnoje podkluchenie sheet_cols.js posle sheet.js (novyj yakor').
+sp = os.path.join(BASE, "modules", "tables", "templates", "tables", "sheet.html")
+s = open(sp, encoding="utf-8").read()
+if "filename='js/sheet_cols.js'" in s:
+    print("SKIP sheet.html: sheet_cols.js already linked")
+else:
+    pat = re.compile(r"(<script[^>]*filename='js/sheet\.js'[^>]*></script>)")
+    s2, n = pat.subn(lambda m: m.group(1) + "\n<script src=\"{{ url_for('static', filename='js/sheet_cols.js') }}\"></script>", s, count=1)
+    if n:
+        open(sp, "w", encoding="utf-8", newline="\n").write(s2)
+        print("PATCH sheet.html: sheet_cols.js linked after sheet.js (robust anchor)")
+    else:
+        print("WARN sheet.html: sheet.js anchor 'filename=...sheet.js' not found")
+
+# 5. CSS: user-select na draggahle (chtoby drag ne zahvatyvals' vydeleniem teksta). Idempotent.
 st = os.path.join(BASE, "web", "static", "css", "style.css")
 c = open(st, encoding="utf-8").read()
-if "colmove-css" not in c:
+if "colmove2-css" not in c:
     c = c.rstrip("\n") + '''
-/* colmove-css: drag kolonok v liste + knopki vyshe/nizhe v cols */
-.cmv{display:inline-flex;gap:3px;margin-left:6px;vertical-align:middle}
-.cmv .btn{padding:2px 7px;font-size:11px;line-height:1.4}
-#shthead tr.shcols th.coldraggable{cursor:grab}
-#shthead tr.shcols th.coldragging{opacity:.4}
-#shthead tr.shcols th.colbefore{box-shadow:inset 3px 0 0 #0b6bcb}
-#shthead tr.shcols th.colafter{box-shadow:inset -3px 0 0 #0b6bcb}
+/* colmove2-css: drag zagolovkov ne treogaet vydelenie */
+#shthead tr.shcols th.coldraggable{-webkit-user-select:none;user-select:none}
+#shthead tr.shcols th.coldragging{opacity:.45}
 '''
     open(st, "w", encoding="utf-8", newline="\n").write(c)
-    print("PATCH style.css: colmove styles")
+    print("PATCH style.css: colmove2 (user-select none)")
 else:
-    print("SKIP style.css: colmove-css present")
-
-dk = os.path.join(BASE, "web", "static", "css", "dark.css")
-c = open(dk, encoding="utf-8").read()
-if "colmove-dark" not in c:
-    c = c.rstrip("\n") + '''
-/* colmove-dark */
-body.dark #shthead tr.shcols th.colbefore{box-shadow:inset 3px 0 0 #4dabf7}
-body.dark #shthead tr.shcols th.colafter{box-shadow:inset -3px 0 0 #4dabf7}
-'''
-    open(dk, "w", encoding="utf-8", newline="\n").write(c)
-    print("PATCH dark.css: colmove dark")
-else:
-    print("SKIP dark.css: colmove-dark present")
+    print("SKIP style.css: colmove2-css present")
 
 hp = os.path.join(BASE, "modules", "versions", "history_seed.py")
 v = open(hp, encoding="utf-8").read()
 m = re.search(r'_B64\s*=\s*"([^"]*)"', v)
 data = json.loads(base64.b64decode(m.group(1)).decode("utf-8"))
-if not any(r.get("version") == "0.13.25" for r in data["releases"]):
-    data["releases"].insert(0, {"version": "0.13.25", "release_date": "2026-11-19", "status": "released",
-        "title": "Очерёдность колонок: перетаскивание в листе и кнопки ↑↓",
-        "notes": "Раньше очерёдность колонок менять штатно было нельзя: поле order в модели и сортировка по нему существовали, но интерфейс управления отсутствовал, а сохранение колонки ставило порядок только при создании. Теперь в листе колонки переставляются перетаскиванием заголовка (как в Excel), а в «Колонки и формулы» на каждой колонке появились кнопки ↑/↓. Оба пути пишут в одно поле order, поэтому форма и лист immediately уважают новый порядок. Управление вынесено в отдельный скрипт и дописанные маршруты — рабочий код листа (sheet.js) и шаблоны формы не изменялись изнутри, регрессия исключена. Настраиваемая ширина колонок спроектирована (глобальное хранилище по таблица×колонка, число в настройках + перетаскивание границы в листе) и будет вторым патчем, чтобы не смешивать миграцию хранилища с управлением порядком в одном изменении."})
-    data["changelog"].insert(0, {"date": "2026-11-19", "author": "синхронизация документации", "change_type": "added",
+if not any(r.get("version") == "0.13.26" for r in data["releases"]):
+    data["releases"].insert(0, {"version": "0.13.26", "release_date": "2026-11-19", "status": "released",
+        "title": "Перетаскивание колонок в листе заработало",
+        "notes": "В 0.13.25 перестановка колонок перетаскиванием заголовка в листе не работала по двум причинам: скрипт sheet_cols.js не подключился к странице (якорь вставки не совпал из-за пробелов и фигурных скобок Jinja вокруг filename='js/sheet.js'), и даже при подключении атрибут draggable стирался при каждой перерисовке шапки листа (sheet.js заменяет innerHTML #shthead при загрузке, опросе чужих правок и любой правке). Скрипт переписан: делегированные слушатели drag висят на самом #shthead и переживают перезапись, а MutationObserver заново навешивает draggable на заголовки после каждой перерисовки; подключение сделано надёжным якорем по уникальной подстроке filename='js/sheet.js'. Рабочий код листа (sheet.js) не изменялся. Маршруты cols_reorder и col_move дописаны идемпотентно на случай, если 0.13.25 до них не дошёл."})
+    data["changelog"].insert(0, {"date": "2026-11-19", "author": "синхронизация документации", "change_type": "fixed",
         "module": "tables", "ticket": "",
-        "description": "Очерёдность колонок: drag заголовков в листе (отдельный sheet_cols.js) и кнопки ↑/↓ в «Колонки и формулы»; новые маршруты col_move и cols_reorder пишут в существующее поле order, форма и лист сортируют по нему."})
+        "description": "Лист: перетаскивание заголовков колонок работает — sheet_cols.js подключён надёжным якорем и переставляет draggable через MutationObserver после каждой перерисовки шапки; sheet.js не тронут."})
     nb = base64.b64encode(json.dumps(data, ensure_ascii=False).encode("utf-8")).decode("ascii")
     v = v[:m.start(1)] + nb + v[m.end(1):]
     open(hp, "w", encoding="utf-8", newline="\n").write(v)
-    print("PATCH history_seed.py: release 0.13.25")
+    print("PATCH history_seed.py: release 0.13.26")
 else:
-    print("SKIP history_seed.py: 0.13.25 present")
+    print("SKIP history_seed.py: 0.13.26 present")
 
 print("=" * 60)
-print("MARKER_END: column reorder (0.13.25)")
+print("MARKER_END: column drag in sheet fixed (0.13.26)")
 print("=" * 60)
 print("Commit + Push:")
-print("  modules/tables/routes.py            (append col_move)")
-print("  modules/tables/sheet_routes.py      (append cols_reorder)")
+print("  modules/tables/sheet_routes.py      (append cols_reorder, esli ne bylo)")
+print("  modules/tables/routes.py            (append col_move, esli ne bylo)")
+print("  web/static/js/sheet_cols.js         (perepisan v2)")
 print("  modules/tables/templates/tables/sheet.html")
-print("  modules/tables/templates/tables/cols.html")
-print("  web/static/js/sheet_cols.js")
 print("  web/static/css/style.css")
-print("  web/static/css/dark.css")
 print("  modules/versions/history_seed.py")
 print("  tools/installers/install.py")

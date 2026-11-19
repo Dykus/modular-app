@@ -158,3 +158,6 @@ body.dark{--shg0c:#4dabf7;--shg0b:#12283d;--shg1c:#ffa94d;--shg1b:#33230f;--shg2
 #shthead tr.shcols th.coldragging{opacity:.4}
 #shthead tr.shcols th.colbefore{box-shadow:inset 3px 0 0 #0b6bcb}
 #shthead tr.shcols th.colafter{box-shadow:inset -3px 0 0 #0b6bcb}
+/* colmove2-css: drag zagolovkov ne treogaet vydelenie */
+#shthead tr.shcols th.coldraggable{-webkit-user-select:none;user-select:none}
+#shthead tr.shcols th.coldragging{opacity:.45}
