@@ -63,3 +63,13 @@ body.dark .sbtoast{background:#1d2733;border-color:#2b3646;border-left-color:#27
 body.dark #totop{background:linear-gradient(135deg,#3b4270,#4a2f63);color:#e7eaf0;box-shadow:0 8px 20px rgba(0,0,0,.5)}
 /* printbanner-dark */
 body.dark .print-banner{background:#33230f;border-color:#5c430f;border-left-color:#e8930c;color:#ffd97a}
+/* form-fbands-dark */
+body.dark .tscroll thead th{background:#1b2430}
+body.dark .tscroll thead tr.fbands th{background:#232e3c;color:#8b99b0;border-bottom-color:#2b3646}
+body.dark .tscroll thead tr.fbands th.fg0{background:var(--shg0b);color:var(--shg0c);border-top-color:var(--shg0c)}
+body.dark .tscroll thead tr.fbands th.fg1{background:var(--shg1b);color:var(--shg1c);border-top-color:var(--shg1c)}
+body.dark .tscroll thead tr.fbands th.fg2{background:var(--shg2b);color:var(--shg2c);border-top-color:var(--shg2c)}
+body.dark .tscroll thead tr.fbands th.fg3{background:var(--shg3b);color:var(--shg3c);border-top-color:var(--shg3c)}
+body.dark .tscroll thead tr.fbands th.fg4{background:var(--shg4b);color:var(--shg4c);border-top-color:var(--shg4c)}
+body.dark .tscroll thead tr.fbands th.fg5{background:var(--shg5b);color:var(--shg5c);border-top-color:var(--shg5c)}
+body.dark .tscroll thead tr.fcols th{color:#b9c4d6;border-bottom-color:#2b3646;background:#1b2430}

@@ -58,8 +58,8 @@
 <div class="tscroll"><table>
 <thead>
 {% set groups = [] %}{% for c in cols %}{% if c.grp and c.grp not in groups %}{% if groups.append(c.grp) %}{% endif %}{% endif %}{% endfor %}
-<tr>
-{% for c in cols %}{% set gi = (groups.index(c.grp) % 6) if c.grp else -1 %}<th class="thc ty-{{ c.col_type }}{% if gi >= 0 %} hasgrp{% endif %}"{% if gi >= 0 %} style="--gc:var(--shg{{ gi }}c);--gb:var(--shg{{ gi }}b)"{% endif %}><span class="tht">{{ c.title }}{% if c.col_type in ('computed','ref') %} ⚙{% elif can_edit_col(m, c.key) %} ✎{% else %} 🔒{% endif %}</span>{% if c.grp %}<span class="thg">{{ c.grp }}</span>{% else %}<span class="thg">&nbsp;</span>{% endif %}</th>{% endfor %}<th>Действия</th></tr> <!-- form-th-v1 -->
+<tr class="fbands">{% for c in cols %}{% set gi = (groups.index(c.grp) % 6) if c.grp else -1 %}<th class="fb{% if gi >= 0 %} fg{{ gi }}{% endif %}">{% if loop.first or (cols[loop.index0-1].grp or '') != (c.grp or '') %}{{ c.grp or '' }}{% endif %}</th>{% endfor %}<th class="fb"></th></tr>
+<tr class="fcols">{% for c in cols %}{% set gi = (groups.index(c.grp) % 6) if c.grp else -1 %}<th class="thc ty-{{ c.col_type }}"{% if gi >= 0 %} style="--gc:var(--shg{{ gi }}c)"{% endif %}>{{ c.title }}{% if c.col_type in ('computed','ref') %} ⚙{% elif can_edit_col(m, c.key) %} ✎{% else %} 🔒{% endif %}</th>{% endfor %}<th class="thc th-act">Действия</th></tr> <!-- form-fbands-v1 -->
 </thead>
 <tbody>
 {% for line in disp %}
