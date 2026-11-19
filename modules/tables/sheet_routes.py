@@ -312,3 +312,19 @@ def grp_rename(tid):
             n += 1
     db.session.commit()
     return jsonify({"ok": True, "n": n})
+
+
+# colreorder-v1: novy poryadok kolonok po spisku klyuchey (drag zagolovkov v liste).
+@tables_bp.route("/<int:tid>/cols/reorder", methods=["POST"])
+@perm("tables.manage")
+def cols_reorder(tid):
+    ensure()
+    t, m, cols, cm = meta(tid)
+    keys = request.get_json(force=True).get("keys", [])
+    by_key = {c.key: c for c in cols}
+    for i, k in enumerate(keys):
+        c = by_key.get(k)
+        if c is not None:
+            c.order = i + 1
+    db.session.commit()
+    return jsonify({"ok": True, "n": len(keys)})

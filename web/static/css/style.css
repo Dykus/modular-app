@@ -151,3 +151,10 @@ body.dark{--shg0c:#4dabf7;--shg0b:#12283d;--shg1c:#ffa94d;--shg1b:#33230f;--shg2
 .tscroll tbody tr td:last-child{white-space:nowrap;vertical-align:middle}
 .tscroll tbody tr td:last-child .btn{padding:3px 9px;font-size:11px;margin:0 2px}
 .tscroll table{min-width:100%}
+/* colmove-css: drag kolonok v liste + knopki vyshe/nizhe v cols */
+.cmv{display:inline-flex;gap:3px;margin-left:6px;vertical-align:middle}
+.cmv .btn{padding:2px 7px;font-size:11px;line-height:1.4}
+#shthead tr.shcols th.coldraggable{cursor:grab}
+#shthead tr.shcols th.coldragging{opacity:.4}
+#shthead tr.shcols th.colbefore{box-shadow:inset 3px 0 0 #0b6bcb}
+#shthead tr.shcols th.colafter{box-shadow:inset -3px 0 0 #0b6bcb}

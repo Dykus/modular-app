@@ -419,3 +419,31 @@ def access(tid):
     return render_template("tables/access.html", t=t, cols=cols, roles=roles, maps=maps)
 
 from modules.tables import sheet_routes  # sheet-link
+
+
+# colmove-v1: perestanovka kolonok vverh/vniz (order uzhe est v modeli).
+@tables_bp.route("/<int:tid>/col/move", methods=["POST"])
+@perm("tables.manage")
+def col_move(tid):
+    from flask import jsonify
+    j = request.get_json(force=True)
+    cid = int(j.get("cid") or 0)
+    direction = 1 if str(j.get("dir")) in ("down", "1", "1.0") else -1
+    cols = cols_of(tid)
+    idx = -1
+    for i, c in enumerate(cols):
+        if c.id == cid:
+            idx = i; break
+    if idx < 0:
+        return jsonify({"ok": False, "err": "notfound"}), 404
+    tgt = idx + direction
+    if tgt < 0 or tgt >= len(cols):
+        return jsonify({"ok": True, "moved": False})
+    a, b = cols[idx], cols[tgt]
+    oa = a.order if a.order is not None else 0
+    ob = b.order if b.order is not None else 0
+    if oa == ob:
+        oa, ob = idx, tgt
+    a.order, b.order = ob, oa
+    db.session.commit()
+    return jsonify({"ok": True, "moved": True})

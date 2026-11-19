@@ -73,3 +73,6 @@ body.dark .tscroll thead tr.fbands th.fg3{background:var(--shg3b);color:var(--sh
 body.dark .tscroll thead tr.fbands th.fg4{background:var(--shg4b);color:var(--shg4c);border-top-color:var(--shg4c)}
 body.dark .tscroll thead tr.fbands th.fg5{background:var(--shg5b);color:var(--shg5c);border-top-color:var(--shg5c)}
 body.dark .tscroll thead tr.fcols th{color:#b9c4d6;border-bottom-color:#2b3646;background:#1b2430}
+/* colmove-dark */
+body.dark #shthead tr.shcols th.colbefore{box-shadow:inset 3px 0 0 #4dabf7}
+body.dark #shthead tr.shcols th.colafter{box-shadow:inset -3px 0 0 #4dabf7}

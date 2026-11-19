@@ -356,4 +356,36 @@ function boot(){
 if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded",boot);}else{boot();}
 })();
 </script>
+<script>
+/* colmove-ui-v1 */
+(function(){
+function boot(){
+ var links=document.querySelectorAll('a[href*="cid="]');
+ if(!links.length)return;
+ var BASEU=location.pathname.replace(/\/cols\/?$/,"");
+ var seen={};
+ for(var i=0;i<links.length;i++){
+  var a=links[i];if(seen[a.getAttribute("href")])continue;seen[a.getAttribute("href")]=1;
+  var tr=a.closest("tr");if(!tr)continue;
+  var m=(a.getAttribute("href")||"").match(/cid=(\d+)/);if(!m)continue;
+  var cid=m[1];
+  var last=tr.cells[tr.cells.length-1];if(!last)continue;
+  var wrap=document.createElement("span");wrap.className="cmv";
+  wrap.innerHTML='<button type="button" class="btn gray cmvu" data-cid="'+cid+'" data-dir="up" title="Выше">↑</button>'
+   +'<button type="button" class="btn gray cmvd" data-cid="'+cid+'" data-dir="down" title="Ниже">↓</button>';
+  last.appendChild(wrap);
+ }
+ document.addEventListener("click",function(e){
+  var b=e.target.closest(".cmvu,.cmvd");if(!b)return;
+  var cid=b.getAttribute("data-cid"),dir=b.getAttribute("data-dir");
+  b.disabled=true;
+  fetch(BASEU+"/col/move",{method:"POST",headers:{"Content-Type":"application/json","X-Requested-With":"fetch"},
+   body:JSON.stringify({cid:+cid,dir:dir})}).then(function(r){return r.json();}).then(function(j){
+   if(j&&j.ok){location.reload();}else{b.disabled=false;alert("Не удалось переставить колонку.");}
+  }).catch(function(){b.disabled=false;alert("Нет связи с сервером.");});
+ });
+}
+if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded",boot);}else{boot();}
+})();
+</script>
 {% endblock %}
