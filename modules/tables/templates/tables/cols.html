@@ -485,6 +485,21 @@ function boot(){
 if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded",boot);}else{boot();}
 })();
 </script>
+<script>
+/* colhuman-fix-v1: snymaem required/readonly s skrytyh polej key, chtoby
+   display:none + required ne blokirovali submit molcha (prichina "nichego ne proishodit"). */
+(function(){
+function boot(){
+ var ks=document.querySelectorAll('input[name="key"], select[name="key"], textarea[name="key"]');
+ for(var i=0;i<ks.length;i++){
+  ks[i].removeAttribute("required");
+  ks[i].removeAttribute("pattern");
+  ks[i].setAttribute("autocomplete","off");
+ }
+}
+if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded",boot);}else{boot();}
+})();
+</script>
 {% endblock %}
 
 
