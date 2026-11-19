@@ -449,7 +449,7 @@ def col_move(tid):
     return jsonify({"ok": True, "moved": True})
 
 
-# texpimp-v1: jeksport/v Import tablicy kak fajla (.json) meždu mašinami.
+# texpimp-v2: jeksport/v Import tablicy kak fajla (.json) meždu mašinami.
 TABLE_EXPORT_FORMAT = "modular-table-export/1"
 
 @tables_bp.route("/<int:tid>/export")
@@ -493,78 +493,110 @@ def table_export(tid):
     return Response(body, mimetype="application/json",
                     headers={"Content-Disposition": 'attachment; filename="%s"' % fname})
 
+def _texp_tmp_dir():
+    bdir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+                        "data", "tmp")
+    os.makedirs(bdir, exist_ok=True)
+    return bdir
+
+def _texp_cleanup_old(max_age_s=3600):
+    """Udaljaet starejšie vremennye dokumenty importa (techenie chasa)."""
+    now = datetime.datetime.utcnow().timestamp()
+    try:
+        for fn in os.listdir(_texp_tmp_dir()):
+            if not fn.startswith("texp_") or not fn.endswith(".json"):
+                continue
+            fp = os.path.join(_texp_tmp_dir(), fn)
+            try:
+                if now - os.path.getmtime(fp) > max_age_s:
+                    os.remove(fp)
+            except OSError:
+                pass
+    except FileNotFoundError:
+        pass
+
+def _texp_summarize(doc):
+    fmt = str(doc.get("format") or "")
+    tb = doc.get("table") or {}
+    cols = doc.get("columns") or []
+    rows = doc.get("rows") or []
+    live = [r for r in rows if not r.get("deleted_at")]
+    dead = [r for r in rows if r.get("deleted_at")]
+    have, missing = [], []
+    names = {r.name for r in Role.query.all()}
+    for a in (doc.get("access") or []):
+        rn = str(a.get("role_name") or "")
+        if rn in names:
+            have.append(rn)
+        elif rn:
+            missing.append(rn)
+    conflict = None
+    key = str(tb.get("key") or "").strip()
+    if key and CustomTable.query.filter_by(key=key).first():
+        conflict = key
+    size_kb = len(json.dumps(doc, ensure_ascii=False)) // 1024
+    return {"fmt": fmt, "ok_fmt": fmt.startswith("modular-table-export/"),
+            "key": key, "title": str(tb.get("title") or ""),
+            "ncols": len(cols), "nlive": len(live), "ndead": len(dead),
+            "nacc": len(doc.get("access") or []), "have_roles": have,
+            "missing_roles": missing, "conflict": conflict, "size_kb": size_kb}
+
 @tables_bp.route("/import-json", methods=["GET", "POST"])
 @perm("tables.manage")
 def import_json():
     """Ekran importa .json tablicy: svodka -> režim -> primenenie v odnoj tranzakcii."""
-    def summarize(doc):
-        fmt = str(doc.get("format") or "")
-        tb = doc.get("table") or {}
-        cols = doc.get("columns") or []
-        rows = doc.get("rows") or []
-        live = [r for r in rows if not r.get("deleted_at")]
-        dead = [r for r in rows if r.get("deleted_at")]
-        have, missing = [], []
-        names = {r.name for r in Role.query.all()}
-        for a in (doc.get("access") or []):
-            rn = str(a.get("role_name") or "")
-            if rn in names:
-                have.append(rn)
-            elif rn:
-                missing.append(rn)
-        conflict = None
-        key = str(tb.get("key") or "").strip()
-        if key and CustomTable.query.filter_by(key=key).first():
-            conflict = key
-        return {"fmt": fmt, "ok_fmt": fmt.startswith("modular-table-export/"),
-                "key": key, "title": str(tb.get("title") or ""),
-                "ncols": len(cols), "nlive": len(live), "ndead": len(dead),
-                "nacc": len(doc.get("access") or []), "have_roles": have,
-                "missing_roles": missing, "conflict": conflict}
-
+    _texp_cleanup_old()
     if request.method != "POST":
         return render_template("tables/import_table.html", step="pick", summ=None, done=None)
 
-    # Shag 1: zagruzka fajla -> svodka.
     act = request.form.get("act") or "preview"
     if act == "preview":
         f = request.files.get("file")
         if f is None or not f.filename:
             flash("Выберите файл .json таблицы.")
             return redirect(url_for("tables.import_json"))
+        raw_bytes = f.stream.read()
         try:
-            doc = json.loads(f.stream.read().decode("utf-8"))
+            text = raw_bytes.decode("utf-8")
+        except UnicodeDecodeError:
+            flash("Файл должен быть текстовым JSON в UTF-8.")
+            return redirect(url_for("tables.import_json"))
+        try:
+            doc = json.loads(text)
         except Exception as e:
             flash("Не удалось прочитать JSON: " + str(e)[:200])
             return redirect(url_for("tables.import_json"))
-        summ = summarize(doc)
+        summ = _texp_summarize(doc)
         if not summ["ok_fmt"]:
             flash("Файл не похож на экспорт таблицы (нет format modular-table-export/…).")
             return redirect(url_for("tables.import_json"))
-        sess = dict(request.session) if hasattr(request, "session") else None
-        try:
-            request.session["texp_doc"] = json.dumps(doc, ensure_ascii=False)
-        except Exception:
-            flash("Файл слишком велик для предпросмотра в сессии — попробуйте таблицу меньшего размера.")
-            return redirect(url_for("tables.import_json"))
+        # Dokument idët NA DISK, ne v sesiju/kuku.
+        tmpname = "texp_" + uuid.uuid4().hex + ".json"
+        tmppath = os.path.join(_texp_tmp_dir(), tmpname)
+        with open(tmppath, "w", encoding="utf-8") as tf:
+            tf.write(text)
+        request.session["texp_file"] = tmpname
         return render_template("tables/import_table.html", step="confirm", summ=summ, done=None)
 
     # Shag 2: primenenie.
     mode = request.form.get("mode") or "new"
-    raw = None
-    try:
-        raw = request.session.pop("texp_doc", None)
-    except Exception:
-        raw = None
-    if not raw:
+    tmpname = request.session.pop("texp_file", None)
+    if not tmpname:
         flash("Сессия истекла — загрузите файл заново.")
         return redirect(url_for("tables.import_json"))
+    tmppath = os.path.join(_texp_tmp_dir(), tmpname)
     try:
-        doc = json.loads(raw)
+        with open(tmppath, "r", encoding="utf-8") as tf:
+            doc = json.load(tf)
     except Exception as e:
-        flash("Ошибка разбора сохранённого документа: " + str(e)[:200])
+        flash("Ошибка чтения сохранённого файла: " + str(e)[:200])
         return redirect(url_for("tables.import_json"))
-    summ = summarize(doc)
+    finally:
+        try:
+            os.remove(tmppath)
+        except OSError:
+            pass
+    summ = _texp_summarize(doc)
     newkey = (request.form.get("newkey") or "").strip()
     target_key = newkey or summ["key"]
     if not target_key:
@@ -573,11 +605,8 @@ def import_json():
     existing = CustomTable.query.filter_by(key=target_key).first()
     if mode == "new" and existing:
         flash("Ключ «%s» занят. Выберите «Обновить существующую», «Только структура» или задайте другой ключ." % target_key)
-        try:
-            request.session["texp_doc"] = raw
-        except Exception:
-            pass
-        return render_template("tables/import_table.html", step="confirm", summ=summ, done=None)
+        # Vozvrat na ekran podtverzhdenija s novym session-file (poprosite fajl znova).
+        return redirect(url_for("tables.import_json"))
 
     report = {"mode": mode, "cols_added": 0, "cols_updated": 0, "cols_removed": 0,
               "rows_created": 0, "rows_updated": 0, "trash_restored": 0,
@@ -598,7 +627,7 @@ def import_json():
             report["backup"] = "(новая таблица — резервная копия не требуется)"
         else:
             t = existing
-            bdir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(file)))),
+            bdir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
                                 "data", "backups")
             os.makedirs(bdir, exist_ok=True)
             stamp = datetime.datetime.utcnow().strftime("%Y%m%d_%H%M%S")
@@ -688,7 +717,7 @@ def import_json():
                     continue
                 cw = ColWidth.query.filter_by(table_id=t.id, column_key=str(k)).first()
                 if cw is None:
-                    db.session.add(ColWidth(table_id=t.id, column_key=str(k), width_pv=pv))
+                    db.session.add(ColWidth(table_id=t.id, column_key=str(k), width_px=pv))
                 else:
                     cw.width_px = pv
         except Exception as e:

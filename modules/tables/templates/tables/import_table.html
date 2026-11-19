@@ -10,12 +10,12 @@
   <div class="form-row"><label>Файл экспорта (.json)</label><input type="file" name="file" accept=".json,application/json" required></div>
   <button class="btn" type="submit">Показать сводку</button>
 </form>
-<p class="note">Экспорт делается кнопкой «⬇ Экспорт (.json)» в шапке формы или листа нужной таблицы.</p>
+<p class="note">Экспорт делается кнопкой «⬇ Экспорт (.json)» в шапке формы или листа нужной таблицы. Размер файла показан в сводке; больших таблиц ограничение куки больше не касается — документ лежит во временном файле.</p>
 
 {% elif step == "confirm" %}
 <div class="card" style="margin-bottom:12px">
   <h3>{{ summ.title }} <code>{{ summ.key }}</code></h3>
-  <p>Колонок: <b>{{ summ.ncols }}</b> · строк живых: <b>{{ summ.nlive }}</b> · в корзине: <b>{{ summ.ndead }}</b> · правил доступа: <b>{{ summ.nacc }}</b></p>
+  <p>Колонок: <b>{{ summ.ncols }}</b> · строк живых: <b>{{ summ.nlive }}</b> · в корзине: <b>{{ summ.ndead }}</b> · правил доступа: <b>{{ summ.nacc }}</b> · размер: <b>{{ summ.size_kb }} КБ</b></p>
   <p>Роли на этой машине: {{ summ.have_roles|join(', ') or '—' }}
      {% if summ.missing_roles %}<span style="color:#c0392b"> · отсутствуют: {{ summ.missing_roles|join(', ') }} (их права будут пропущены)</span>{% endif %}</p>
   {% if summ.conflict %}<p style="color:#e8930c;font-weight:700">Ключ «{{ summ.conflict }}» уже занят на этой машине.</p>{% endif %}
