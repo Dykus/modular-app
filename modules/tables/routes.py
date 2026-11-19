@@ -6,7 +6,7 @@ from core.models import Role
 from modules.tables.models import CustomTable, TableColumn, TableRow, TableAccess, CellLog
 from modules.tables.service import (jload, num, compute_value, user_access, role_access,
                                     can_edit_col, calc_counters, TRASH_DAYS)
-import json, os, datetime, re
+import json, os, datetime, re, uuid
 
 TYPE_LABELS = {
     "text": "Текст",
