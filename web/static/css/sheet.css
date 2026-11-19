@@ -113,3 +113,7 @@ body.dark .shtoasts .t{background:#1d2733;color:#e8edf5;border-color:#2b3646}
 /* poll-controls-fix */
 #shroot .shviewbar .btn{padding:5px 10px;font-size:12px}
 #shroot .shpoll{font-weight:600}
+/* viewbar-v3-css: pilyuli neustyashchivayutsya */
+#shroot .shviewbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;overflow:visible}
+#shroot .shviewbar label.shv{display:inline-flex;flex:0 0 auto;width:auto;max-width:100%;align-items:center;gap:6px}
+#shroot .shviewbar label.shv span{white-space:nowrap}

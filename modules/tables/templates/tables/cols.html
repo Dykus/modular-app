@@ -290,4 +290,70 @@ regroup();update();
 if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded",boot);}else{boot();}
 })();
 </script>
+<script>
+/* grpui-v1 */
+(function(){
+function boot(){
+ var ths=document.querySelectorAll("th");var gi=-1;var table=null;
+ for(var i=0;i<ths.length;i++){var tx=(ths[i].textContent||"").trim().toLowerCase();
+  if(tx==="группа"){gi=ths[i].cellIndex;table=ths[i].closest("table");break;}}
+ if(!table||gi<0)return;
+ var BASEU=location.pathname.replace(/\/cols\/?$/,"");
+ var dl=document.createElement("datalist");dl.id="grpdl";document.body.appendChild(dl);
+ var gin=document.querySelector('[name="grp"]');if(gin)gin.setAttribute("list","grpdl");
+ function cells(){var out=[];var tb=table.tBodies[0];if(!tb)return out;
+  for(var i=0;i<tb.rows.length;i++){var td=tb.rows[i].cells[gi];if(!td)continue;
+   var a=tb.rows[i].querySelector('a[href*="cid="]');if(!a)continue;
+   td.classList.add("gcell");td.title="Клик — выбрать или вписать группу";
+   out.push(td);}
+  return out;}
+ function groupSet(){var set={};var tds=cells();
+  for(var i=0;i<tds.length;i++){var v=(tds[i].textContent||"").trim();if(v&&v!=="—")set[v]=(set[v]||0)+1;}
+  return set;}
+ function rebuild(){
+  var set=groupSet();
+  dl.innerHTML="";for(var k in set){var o=document.createElement("option");o.value=k;dl.appendChild(o);}
+  var panel=document.getElementById("gpanel");
+  if(!panel){panel=document.createElement("div");panel.id="gpanel";panel.className="gpanel";
+   table.parentNode.insertBefore(panel,table);}
+  var keys=Object.keys(set);
+  panel.innerHTML="<b>Группы:</b> "+(keys.length?keys.map(function(k){
+    return '<span class="gchip" data-g="'+k.replace(/"/g,"&quot;")+'" title="Клик — переименовать везде">'+k+" ("+set[k]+')<span class="gx" title="Убрать группу везде">✕</span></span>';
+   }).join(""):'<span class="note" style="margin:0">пока нет — кликните по клетке колонки «Группа»</span>')
+   +' <span class="note" style="margin:0">Клик по клетке «Группа» в строке — выбрать из готовых или вписать свою. Клик по группе сверху — переименовать везде, ✕ — убрать везде.</span>';
+ }
+ function post(url,body){return fetch(url,{method:"POST",headers:{"Content-Type":"application/json","X-Requested-With":"fetch"},body:JSON.stringify(body)}).then(function(r){return r.json();});}
+ table.addEventListener("click",function(e){
+  var td=e.target.closest("td.gcell");if(!td||td.querySelector("input"))return;
+  var a=td.parentNode.querySelector('a[href*="cid="]');if(!a)return;
+  var m=a.getAttribute("href").match(/cid=(\d+)/);if(!m)return;
+  var cid=m[1];var old=(td.textContent||"").trim();if(old==="—")old="";
+  var inp=document.createElement("input");inp.type="text";inp.value=old;inp.setAttribute("list","grpdl");inp.style.width="130px";
+  td.textContent="";td.appendChild(inp);inp.focus();inp.select();
+  function done(commit){
+   if(!inp.parentNode)return;
+   inp.remove();
+   if(commit){post(BASEU+"/col/grp",{cid:+cid,grp:inp.value}).then(function(j){
+     if(j.ok){td.textContent=j.grp||"—";rebuild();}});}
+   else{td.textContent=old||"—";}
+  }
+  inp.addEventListener("keydown",function(ev){ev.stopPropagation();
+   if(ev.key==="Enter"){ev.preventDefault();done(true);}
+   else if(ev.key==="Escape"){done(false);}});
+  inp.addEventListener("blur",function(){done(true);});
+ });
+ document.addEventListener("click",function(e){
+  var chip=e.target.closest(".gchip");if(!chip)return;
+  var g=chip.getAttribute("data-g");
+  if(e.target.closest(".gx")){
+   if(confirm("Убрать группу «"+g+"» у всех колонок?"))post(BASEU+"/grp/rename",{old:g,new:""}).then(function(j){if(j.ok)location.reload();});
+   return;}
+  var nv=prompt("Новое название группы «"+g+"» (применится ко всем её колонкам):",g);
+  if(nv!==null&&nv.trim()&&nv.trim()!==g)post(BASEU+"/grp/rename",{old:g,new:nv.trim()}).then(function(j){if(j.ok)location.reload();});
+ });
+ rebuild();
+}
+if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded",boot);}else{boot();}
+})();
+</script>
 {% endblock %}

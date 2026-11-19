@@ -42,17 +42,16 @@ window.addEventListener("error", function(e){
       <button class="btn gray" id="shbulkclear">✕</button>
     </div>
   </div>
-  <div class="shviewbar">
-    <label>Плотность <select id="shdensity"><option value="c">компакт</option><option value="n" selected>обычная</option><option value="r">просторная</option></select></label>
-    <label>Шрифт <input type="range" id="shfont" min="12" max="18" value="14"><span id="shfontv">14</span></label>
-    <label><input type="checkbox" id="shdark"> тёмная</label>
-    <label><input type="checkbox" id="shzebra" checked> зебра</label>
-    <label><input type="checkbox" id="shgrid" checked> сетка</label>
-    <label><input type="checkbox" id="shlocks" checked> замки</label>
-    <label><input type="checkbox" id="shrecent" checked> подсветка правок</label>
-    <label><input type="checkbox" id="shfreeze" checked> закрепить 1-й столбец</label>
-    <label><input type="checkbox" id="shbands" checked> шапка групп</label>
-    <label><input type="checkbox" id="shpause"> пауза автообновления</label>
+  <div class="shviewbar" data-v="viewbar-v3">
+    <label class="shv">Плотность <select id="shdensity"><option value="c">компакт</option><option value="n" selected>обычная</option><option value="r">просторная</option></select></label>
+    <label class="shv">Шрифт <input type="range" id="shfont" min="12" max="18" value="14"><span id="shfontv">14</span></label>
+    <label class="shv"><input type="checkbox" id="shzebra" checked><span>зебра</span></label>
+    <label class="shv"><input type="checkbox" id="shgridl" checked><span>сетка</span></label>
+    <label class="shv"><input type="checkbox" id="shlocks" checked><span>замки</span></label>
+    <label class="shv"><input type="checkbox" id="shrecent" checked><span>подсветка правок</span></label>
+    <label class="shv"><input type="checkbox" id="shfreeze" checked><span>закрепить 1-й столбец</span></label>
+    <label class="shv"><input type="checkbox" id="shbands" checked><span>шапка групп</span></label>
+    <label class="shv"><input type="checkbox" id="shpause"><span>пауза автообновления</span></label>
     <button class="btn gray" id="shrefresh">⟳ Обновить</button>
     <span class="shpoll" id="shpoll">обновлено сейчас</span>
   </div>

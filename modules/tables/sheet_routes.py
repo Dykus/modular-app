@@ -282,3 +282,33 @@ def sample(tid):
     return jsonify({"rows": [{"id": r.id, "data": jload(r.data, {})} for r in rows],
                     "cols": [{"k": c.key, "t": c.title, "ty": c.col_type,
                               "op": jload(c.options, [])} for c in cols]})
+
+# grpapi-v1: inline-smena gruppy kolonki i pereimenovanie gruppy vezde.
+@tables_bp.route("/<int:tid>/col/grp", methods=["POST"])
+@perm("tables.manage")
+def col_grp(tid):
+    ensure()
+    t, m, cols, cm = meta(tid)
+    j = request.get_json(force=True)
+    col = TableColumn.query.get_or_404(int(j.get("cid") or 0))
+    if col.table_id != tid:
+        abort(404)
+    col.grp = (j.get("grp") or "").strip()
+    db.session.commit()
+    return jsonify({"ok": True, "grp": col.grp})
+
+@tables_bp.route("/<int:tid>/grp/rename", methods=["POST"])
+@perm("tables.manage")
+def grp_rename(tid):
+    ensure()
+    t, m, cols, cm = meta(tid)
+    j = request.get_json(force=True)
+    old = (j.get("old") or "").strip()
+    new = (j.get("new") or "").strip()
+    n = 0
+    for c in TableColumn.query.filter_by(table_id=tid).all():
+        if (c.grp or "").strip() == old:
+            c.grp = new
+            n += 1
+    db.session.commit()
+    return jsonify({"ok": True, "n": n})

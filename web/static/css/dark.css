@@ -52,3 +52,12 @@ body.dark .fprev .res{color:#60a5fa}
 /* ghead-dark */
 body.dark .ghead{color:#9aa3b2}
 body.dark .fprev .res{color:#60a5fa}
+/* grpui-dark */
+body.dark .gpanel{background:#1c2733;border-color:#2b3646}
+body.dark .gchip{background:#12283d;color:#4dabf7}
+body.dark .gchip:hover{border-color:#4dabf7}
+body.dark .gchip .gx{color:#f783ac}
+/* sbtoast-dark */
+body.dark .sbtoast{background:#1d2733;border-color:#2b3646;border-left-color:#27ae60;color:#e7eaf0}
+/* totop-dark */
+body.dark #totop{background:linear-gradient(135deg,#3b4270,#4a2f63);color:#e7eaf0;box-shadow:0 8px 20px rgba(0,0,0,.5)}

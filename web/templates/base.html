@@ -64,5 +64,32 @@
   }
 })();
 </script>
+<script>
+/* scrollback-v1: posle sokhraneniya stranica vozvrašchaetsya na to zhe mesto,
+   a soobshchenie o rezul'tate pokazyvaetsya tostom vnizu sprava. */
+(function(){try{
+  var k="sb:"+location.pathname+location.search;
+  var flash=document.querySelector(".flash");
+  if(flash){var txt=(flash.textContent||"").trim();
+    if(txt){var t=document.createElement("div");t.className="sbtoast";t.textContent=txt;
+      document.body.appendChild(t);flash.style.display="none";
+      setTimeout(function(){t.style.opacity="0";t.style.transition=".4s";
+        setTimeout(function(){if(t.parentNode)t.remove();},450);},6000);}}
+  var st=+sessionStorage.getItem("sb:t")||0;
+  var saved=sessionStorage.getItem(k);
+  if(saved&&Date.now()-st<20000){var y=+saved;setTimeout(function(){window.scrollTo(0,y);},0);}
+  window.addEventListener("beforeunload",function(){
+    sessionStorage.setItem(k,String(window.scrollY));
+    sessionStorage.setItem("sb:t",String(Date.now()));});
+}catch(e){}})();
+</script>
+<button id="totop" title="Наверх" aria-label="Наверх">↑</button>
+<script>
+/* totop-v1 */
+(function(){var b=document.getElementById("totop");if(!b)return;
+function upd(){b.style.display=(window.scrollY>600)?"block":"none";}
+window.addEventListener("scroll",upd,{passive:true});upd();
+b.addEventListener("click",function(){window.scrollTo({top:0,behavior:"smooth"});});})();
+</script>
 </body>
 </html>
