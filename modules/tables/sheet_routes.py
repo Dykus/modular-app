@@ -328,3 +328,53 @@ def cols_reorder(tid):
             c.order = i + 1
     db.session.commit()
     return jsonify({"ok": True, "n": len(keys)})
+
+
+# colwidth-v1: glavnaja naširina kolonok (tablica x kolonka), 0 = avto.
+class ColWidth(db.Model):
+    __tablename__ = "col_width"
+    id = db.Column(db.Integer, primary_key=True)
+    table_id = db.Column(db.Integer, nullable=False)
+    column_key = db.Column(db.String(60), nullable=False)
+    width_px = db.Column(db.Integer, default=0)
+
+@tables_bp.route("/<int:tid>/widths")
+@perm("tables.view")
+def widths_get(tid):
+    ensure()
+    t, m, cols, cm = meta(tid)
+    keys = [c.key for c in cols]
+    wmap = {}
+    for w in ColWidth.query.filter_by(table_id=tid).all():
+        if w.width_px and w.width_px > 0:
+            wmap[w.column_key] = int(w.width_px)
+    return jsonify({"widths": wmap, "keys": keys})
+
+@tables_bp.route("/<int:tid>/width", methods=["POST"])
+@perm("tables.manage")
+def width_set(tid):
+    ensure()
+    t, m, cols, cm = meta(tid)
+    j = request.get_json(force=True)
+    key = (j.get("key") or "").strip()
+    try:
+        px = int(j.get("width") or 0)
+    except Exception:
+        px = 0
+    if px < 0:
+        px = 0
+    if px > 1200:
+        px = 1200
+    if key not in [c.key for c in cols]:
+        return jsonify({"ok": False, "err": "badkey"}), 400
+    row = ColWidth.query.filter_by(table_id=tid, column_key=key).first()
+    if px == 0:
+        if row:
+            db.session.delete(row)
+    else:
+        if row:
+            row.width_px = px
+        else:
+            db.session.add(ColWidth(table_id=tid, column_key=key, width_px=px))
+    db.session.commit()
+    return jsonify({"ok": True, "width": px})

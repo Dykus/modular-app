@@ -161,3 +161,31 @@ body.dark{--shg0c:#4dabf7;--shg0b:#12283d;--shg1c:#ffa94d;--shg1b:#33230f;--shg2
 /* colmove2-css: drag zagolovkov ne treogaet vydelenie */
 #shthead tr.shcols th.coldraggable{-webkit-user-select:none;user-select:none}
 #shthead tr.shcols th.coldragging{opacity:.45}
+/* colwidth-css: ručka tjanija širiny v liste */
+#shthead th{position:relative}
+.cw-handle{position:absolute;right:0;top:0;bottom:0;width:7px;cursor:col-resize;
+ background:transparent;z-index:8}
+.cw-handle:hover,.cw-resizing .cw-handle{background:rgba(11,107,203,.35)}
+.cw-resizing{user-select:none}
+
+/* form-fbands-css2: rovnaja dvuhstrochnaja šapka formy + prokrutka v okne */
+.tscroll{max-height:72vh;overflow:auto;position:relative;border-radius:8px}
+.tscroll thead th{position:sticky;background:#f7f8fb;z-index:3}
+.tscroll thead tr.fbands th{top:0;height:22px;line-height:16px;padding:3px 6px;font-size:10px;
+ font-weight:800;text-transform:uppercase;letter-spacing:.4px;text-align:center;
+ border-bottom:1px solid #e1e6ef;background:#eef1f6;color:#8a93a6}
+.tscroll thead tr.fbands th.fg0{background:var(--shg0b);color:var(--shg0c);border-top:2px solid var(--shg0c)}
+.tscroll thead tr.fbands th.fg1{background:var(--shg1b);color:var(--shg1c);border-top:2px solid var(--shg1c)}
+.tscroll thead tr.fbands th.fg2{background:var(--shg2b);color:var(--shg2c);border-top:2px solid var(--shg2c)}
+.tscroll thead tr.fbands th.fg3{background:var(--shg3b);color:var(--shg3c);border-top:2px solid var(--shg3c)}
+.tscroll thead tr.fbands th.fg4{background:var(--shg4b);color:var(--shg4c);border-top:2px solid var(--shg4c)}
+.tscroll thead tr.fbands th.fg5{background:var(--shg5b);color:var(--shg5c);border-top:2px solid var(--shg5c)}
+.tscroll thead tr.fcols th{top:22px;padding:6px 8px;font-size:11px;text-transform:uppercase;
+ letter-spacing:.3px;color:#41506b;border-bottom:2px solid #d8dfea;text-align:left;
+ vertical-align:top;background:#f7f8fb;white-space:normal}
+.tscroll thead tr.fcols th.ty-number,.tscroll thead tr.fcols th.ty-date{white-space:nowrap}
+.tscroll thead tr.fcols th.th-act{min-width:118px}
+.tscroll tbody td{vertical-align:middle;padding:7px 8px}
+.tscroll tbody td.ty-number,.tscroll tbody td.ty-date{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.tscroll tbody tr td:last-child{white-space:nowrap;vertical-align:middle}
+.tscroll tbody tr td:last-child .btn{padding:3px 9px;font-size:11px;margin:0 2px}

@@ -388,4 +388,70 @@ function boot(){
 if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded",boot);}else{boot();}
 })();
 </script>
+<script>
+/* colwidth-ui-v2: pole "Širina, px" vo VSEH formah kolonok (novaja i pravka),
+   vstavljaetsya PERED knopkami, sohranjaet čerez POST /width (0 = avto). */
+(function(){
+function boot(){
+ var m=location.pathname.match(/\/tables\/(\d+)/);if(!m)return;
+ var tid=m[1];
+ var forms=document.querySelectorAll("form");
+ var made=0;
+ for(var fi=0;fi<forms.length;fi++){
+  var form=forms[fi];
+  var keyIn=form.querySelector('[name="key"]');
+  var titleIn=form.querySelector('[name="title"]');
+  if(!keyIn||!titleIn)continue;
+  if(form.querySelector(".cw-field"))continue; /* guard ot dublej */
+  var uid="cw"+fi;
+  var row=document.createElement("div");
+  row.className="form-row cw-field";
+  row.style.cssText="margin-top:10px;padding:10px 12px;background:#f4f8ff;border:1px solid #cfe0f7;border-left:4px solid #2196f3;border-radius:8px;display:flex;gap:10px;align-items:center;flex-wrap:wrap";
+  row.innerHTML='<label style="display:inline-flex;gap:8px;align-items:center;font-size:13px;font-weight:700;color:#1565c0">'
+   +'↔ Ширина, px'
+   +'<input type="number" min="0" max="1200" step="1" id="'+uid+'" class="cw-in" value="0" style="width:80px;padding:6px 8px;border:1px solid #90caf9;border-radius:7px;font-weight:700">'
+   +'<span class="note" style="margin:0;font-weight:400">0 = авто · тяни границу в листе · видят все</span></label>'
+   +'<button type="button" class="btn cw-save" data-uid="'+uid+'">💾 Ширина</button>'
+   +'<span class="note cw-msg" id="'+uid+'msg" style="margin:0"></span>';
+  /* vstavka pered blokami knopok, esli naideny; inache v konec formy */
+  var saveBtn=null, btns=form.querySelectorAll("button");
+  for(var bi=0;bi<btns.length;bi++){ if(/сохран/i.test(btns[bi].textContent||"")){saveBtn=btns[bi];break;} }
+  if(saveBtn){
+   var host=(saveBtn.parentNode&&saveBtn.parentNode!==form)?saveBtn.parentNode:saveBtn;
+   form.insertBefore(row,host);
+  } else { form.appendChild(row); }
+  made++;
+  (function(form,keyIn,uid){
+   var inp=form.querySelector("#"+uid);
+   var msg=form.querySelector("#"+uid+"msg");
+   function curKey(){return (keyIn.value||"").trim();}
+   function load(){
+    var k=curKey(); if(!k){inp.value="0";return;}
+    fetch("/tables/"+tid+"/widths").then(function(r){return r.json();}).then(function(j){
+     inp.value=(j.widths&&j.widths[k])?j.widths[k]:"0";
+    }).catch(function(){});
+   }
+   keyIn.addEventListener("change",load);
+   form.querySelector(".cw-save").addEventListener("click",function(){
+    var k=curKey(); if(!k){msg.textContent="сначала укажите ключ колонки";msg.style.color="#c0392b";return;}
+    var w=parseInt(inp.value,10)||0;
+    fetch("/tables/"+tid+"/width",{method:"POST",
+     headers:{"Content-Type":"application/json","X-Requested-With":"fetch"},
+     body:JSON.stringify({key:k,width:w})})
+     .then(function(r){return r.json();})
+     .then(function(j){
+      if(j&&j.ok){msg.textContent=w>0?("ширина "+w+" px сохранена"):"сброшено на авто";msg.style.color="#27ae60";}
+      else{msg.textContent="нет права управлять колонками";msg.style.color="#c0392b";}
+     }).catch(function(){msg.textContent="нет связи";msg.style.color="#c0392b";});
+   });
+   load();
+  })(form,keyIn,uid);
+ }
+ if(!made){var n=document.querySelector(".cw-note");if(!n){n=document.createElement("div");n.className="note cw-note";n.textContent="Поле ширины появится в форме колонки (создание/правка).";var eb=document.querySelector("form");if(eb&&eb.parentNode)eb.parentNode.insertBefore(n,eb);}}
+}
+if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded",boot);}else{boot();}
+})();
+</script>
 {% endblock %}
+
+
